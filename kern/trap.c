@@ -9,6 +9,10 @@
 #include <kern/env.h>
 #include <kern/syscall.h>
 
+#define RING0_DPL 0
+#define RING3_DPL 3
+#define NTRAPS 49
+extern uint32_t trap_handlers[];
 static struct Taskstate ts;
 
 /* For debugging, so print_trapframe can distinguish between printing
@@ -65,8 +69,30 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	// Set up a normal interrupt/trap gate descriptor.
+	// - istrap: 1 for a trap (= exception) gate, 0 for an interrupt gate.
+	// - sel: Code segment selector for interrupt/trap handler
+	// - off: Offset in code segment for interrupt/trap handler
+	// - dpl: Descriptor Privilege Level -
 
-	// Per-CPU setup 
+	int i;
+	SETGATE(idt[T_BRKPT], 0, GD_KT, trap_handlers[T_BRKPT], RING3_DPL);
+	for(i = 0; i < 49; i++)
+	{
+		if (i == T_BRKPT){
+				SETGATE(idt[T_BRKPT], 0, GD_KT, trap_handlers[T_BRKPT], RING3_DPL);
+		}
+		else if(i == T_SYSCALL){
+				SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_handlers[T_SYSCALL], RING3_DPL);
+		}
+		else{
+				SETGATE(idt[i], 1, GD_KT, trap_handlers[i], RING0_DPL);
+		}
+	 }
+
+
+
+	// Per-CPU setup
 	trap_init_percpu();
 }
 
@@ -143,6 +169,21 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	//int32_t syscall(uint32_t num, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5);
+	switch(tf->tf_trapno){
+		case T_PGFLT: { page_fault_handler(tf); break; }
+		case T_BRKPT: { monitor(tf); break; }
+		case T_SYSCALL: {
+											int32_t res = syscall((tf->tf_regs).reg_eax,
+											(tf->tf_regs).reg_edx,
+											(tf->tf_regs).reg_ecx,
+											(tf->tf_regs).reg_ebx,
+											(tf->tf_regs).reg_edi,
+											(tf->tf_regs).reg_esi);
+											(tf->tf_regs).reg_eax = res;
+											return; }
+		default: break;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -200,6 +241,9 @@ page_fault_handler(struct Trapframe *tf)
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
+	if(!(tf->tf_cs & 3)){
+		panic("Error in page_fault_handler: Kernel Page Fault\n");
+	}
 
 	// Handle kernel-mode page faults.
 
@@ -214,4 +258,3 @@ page_fault_handler(struct Trapframe *tf)
 	print_trapframe(tf);
 	env_destroy(curenv);
 }
-
