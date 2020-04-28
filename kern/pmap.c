@@ -214,7 +214,7 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 	boot_map_region(kern_pgdir,KSTACKTOP-KSTKSIZE,KSTKSIZE,PADDR(bootstack),PTE_W | PTE_P);
-	//boot_map_region(kern_pgdir,KSTACKTOP-PTSIZE,PTSIZE,PADD(pages),PTE_W | PTE_P);
+
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -223,13 +223,11 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-
+	boot_map_region(kern_pgdir,KERNBASE,0xffffffff-KERNBASE+1,0x0,PTE_W | PTE_P);
 
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
 
-//assert((0xffffffff-KERNBASE+1)%PGSIZE == 0);
-boot_map_region(kern_pgdir,KERNBASE,0xffffffff-KERNBASE+1,0x0,PTE_W | PTE_P);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -278,7 +276,22 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	// *    KERNBASE, ---->  +------------------------------+ 0xf0000000      --+
+	// *    KSTACKTOP        |     CPU0's Kernel Stack      | RW/--  KSTKSIZE   |
+	// *                     | - - - - - - - - - - - - - - -|                   |
+	// *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
+	// *                     +------------------------------+                   |
+	// *                     |     CPU1's Kernel Stack      | RW/--  KSTKSIZE   |
+	// *                     | - - - - - - - - - - - - - - -|                 PTSIZE
+	// *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
+	// *                     +------------------------------+                   |
+	uint32_t i;
 
+	for(i=0; i < NCPU; i++){
+		uintptr_t va_add = (uintptr_t)(KSTACKTOP-(KSTKSIZE+KSTKGAP)*(i));
+		va_add = va_add - KSTKSIZE;
+		boot_map_region(kern_pgdir,va_add,KSTKSIZE,PADDR(percpu_kstacks[i]),PTE_W);
+	}
 }
 
 // --------------------------------------------------------------
@@ -318,8 +331,15 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
+
 	size_t after_kernel =(EXTPHYSMEM/PGSIZE) + (4*1024) +((npages * sizeof(struct PageInfo))/PGSIZE);
 	for (i = 0; i < npages; i++) {
+		//Check: physical page at MPENTRY_PADDR in use
+		if(i == PGNUM(MPENTRY_PADDR)){
+			pages[i].pp_ref = 0;
+			pages[i].pp_link = NULL;
+			continue;
+		}
 		if(i == 0){
 			pages[i].pp_ref = 1;
 		}
@@ -609,9 +629,17 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
-}
+	size = ROUNDUP(size,PGSIZE);
+	pa = ROUNDDOWN(pa,PGSIZE);
 
+	if (base + size > MMIOLIM){
+		panic("Error in mmio_map_region: base+size > MMIOLIM!\n");
+	}
+	boot_map_region(kern_pgdir,base,size,pa,PTE_PCD|PTE_PWT|PTE_P|PTE_W);
+	uintptr_t old_base = base;
+	base += size;
+	return (void *)old_base;
+}
 static uintptr_t user_mem_check_addr;
 
 //
