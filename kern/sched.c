@@ -50,12 +50,12 @@ sched_yield(void)
 			return; //Should not return
 		}
 	}
-	if(id !=-1 && envs[id].env_status == ENV_RUNNING){
-		env_run(&envs[id]); //ContextSwitch
+	if(curenv && curenv->env_status == ENV_RUNNING){
+
+		env_run(curenv); //ContextSwich
 
 		return; //Should not return
 	}
-
 	// sched_halt never returns
 	sched_halt();
 }
