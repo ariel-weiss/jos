@@ -313,15 +313,15 @@ page_fault_handler(struct Trapframe *tf)
 	uint32_t fault_va;
 
 	// Read processor's CR2 register to find the faulting address
-	fault_va = rcr2();
-	if(!(tf->tf_cs & 3)){
-		panic("Error in page_fault_handler: Kernel Page Fault\n");
-	}
+
 
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
-
+	fault_va = rcr2();
+	if(!(tf->tf_cs & 3)){
+		panic("Error in page_fault_handler: Kernel Page Fault\n");
+	}
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
@@ -354,10 +354,49 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	//Check the upcall func
+	//Set up stack frame for page fault on the uxstack
 
-	// Destroy the environment that caused the fault.
+	//Call the upcall
+	if(!curenv->env_pgfault_upcall){
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+			//Remaining three checks
+		print_trapframe(tf);
+		env_destroy(curenv);
+	}
+	//user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
+	user_mem_assert(curenv,(void*)(UXSTACKTOP-PGSIZE),PGSIZE,PTE_P|PTE_W|PTE_U);
+
+	//struct UTrapframe* ufram = curenv->tf_esp; TODO mabye its good! maybe not
+	uintptr_t addr;
+	struct UTrapframe* ufram;
+	if(tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp <= UXSTACKTOP - 1){
+			addr = tf->tf_esp - sizeof(struct UTrapframe) - 4;
+			user_mem_assert(curenv, (void *) addr, 1, PTE_W);
+		}else{
+			addr = UXSTACKTOP - sizeof(struct UTrapframe);
+		}
+
+	ufram = (struct UTrapframe *) addr;
+	ufram->utf_fault_va = fault_va;
+	ufram->utf_err = curenv->env_tf.tf_err;
+	ufram->utf_regs = curenv->env_tf.tf_regs;
+	ufram->utf_eflags = curenv->env_tf.tf_eflags;
+	ufram->utf_eip = curenv->env_tf.tf_eip;
+	ufram->utf_esp = curenv->env_tf.tf_esp;
+	curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+	curenv->env_tf.tf_esp = addr;
+	env_run(curenv);
+
+
+	//
+	//
+	// // Destroy the environment that caused the fault.
+
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
+
 	print_trapframe(tf);
 	env_destroy(curenv);
 }
