@@ -106,6 +106,7 @@ fork(void)
 	}
 	else if(id == 0) {
 		set_pgfault_handler(pgfault);
+		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 
