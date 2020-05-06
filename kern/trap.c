@@ -34,7 +34,7 @@ struct Pseudodesc idt_pd = {
 	sizeof(idt) - 1, (uint32_t) idt
 };
 
-
+//TRAP
 static const char *trapname(int trapno)
 {
 	static const char * const excnames[] = {
@@ -93,7 +93,7 @@ trap_init(void)
 				SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_handlers[T_SYSCALL], RING3_DPL);
 		}
 		else{
-				SETGATE(idt[i], 1, GD_KT, trap_handlers[i], RING0_DPL);
+				SETGATE(idt[i], 0, GD_KT, trap_handlers[i], RING0_DPL);
 		}
 	 }
 
@@ -130,15 +130,13 @@ trap_init_percpu(void)
 	//
 	// LAB 4: Your code here:
 
-	//for(i=0; i < NCPU; i++){
-		//set tss
 	thiscpu->cpu_ts.ts_esp0 = (KSTACKTOP-((KSTKSIZE+KSTKGAP)*(thiscpu->cpu_id)));
 	thiscpu->cpu_ts.ts_ss0 = GD_KD;
 	//set tss desc.
 	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
 					sizeof(struct Taskstate) - 1, 0);
 	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id].sd_s = 0;
-	//}
+
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
 	// ts.ts_esp0 = KSTACKTOP;
@@ -236,7 +234,11 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
-
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER){
+		lapic_eoi();
+		sched_yield();
+		panic("Error trap: return after clock\n");
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -357,46 +359,47 @@ page_fault_handler(struct Trapframe *tf)
 	//Check the upcall func
 	//Set up stack frame for page fault on the uxstack
 
-	//Call the upcall
-	if(!curenv->env_pgfault_upcall){
-		cprintf("[%08x] user fault va %08x ip %08x\n",
-			curenv->env_id, fault_va, tf->tf_eip);
-			//Remaining three checks
-		print_trapframe(tf);
-		env_destroy(curenv);
-	}
-	//user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
-	user_mem_assert(curenv,(void*)(UXSTACKTOP-PGSIZE),PGSIZE,PTE_P|PTE_W|PTE_U);
-
-	//struct UTrapframe* ufram = curenv->tf_esp; TODO mabye its good! maybe not
-	uintptr_t addr;
-	struct UTrapframe* ufram;
-	if(tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp <= UXSTACKTOP - 1){
-			addr = tf->tf_esp - sizeof(struct UTrapframe) - 4;
-			user_mem_assert(curenv, (void *) addr, 1, PTE_W);
-		}else{
-			addr = UXSTACKTOP - sizeof(struct UTrapframe);
+		//Call the upcall
+		if(!curenv->env_pgfault_upcall){
+			cprintf("[%08x] user fault va %08x ip %08x\n",
+				curenv->env_id, fault_va, tf->tf_eip);
+				//Remaining three checks
+			print_trapframe(tf);
+			env_destroy(curenv);
 		}
 
-	ufram = (struct UTrapframe *) addr;
-	ufram->utf_fault_va = fault_va;
-	ufram->utf_err = curenv->env_tf.tf_err;
-	ufram->utf_regs = curenv->env_tf.tf_regs;
-	ufram->utf_eflags = curenv->env_tf.tf_eflags;
-	ufram->utf_eip = curenv->env_tf.tf_eip;
-	ufram->utf_esp = curenv->env_tf.tf_esp;
-	curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
-	curenv->env_tf.tf_esp = addr;
-	env_run(curenv);
+		//user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
+		user_mem_assert(curenv,(void*)(UXSTACKTOP-1),1,PTE_P|PTE_W|PTE_U);
+
+		//struct UTrapframe* ufram = curenv->tf_esp; TODO mabye its good! maybe not
+		uintptr_t addr;
+		struct UTrapframe* ufram;
+		if(tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp <= UXSTACKTOP - 1){
+				addr = tf->tf_esp - sizeof(struct UTrapframe) - 4;
+				user_mem_assert(curenv, (void *) addr, 1, PTE_W);
+			}else{
+				addr = UXSTACKTOP - sizeof(struct UTrapframe);
+			}
+
+		ufram = (struct UTrapframe *) addr;
+		ufram->utf_fault_va = fault_va;
+		ufram->utf_err = curenv->env_tf.tf_err;
+		ufram->utf_regs = curenv->env_tf.tf_regs;
+		ufram->utf_eflags = curenv->env_tf.tf_eflags;
+		ufram->utf_eip = curenv->env_tf.tf_eip;
+		ufram->utf_esp = curenv->env_tf.tf_esp;
+		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+		curenv->env_tf.tf_esp = addr;
+		env_run(curenv);
 
 
-	//
-	//
-	// // Destroy the environment that caused the fault.
+		//
+		//
+		// // Destroy the environment that caused the fault.
 
-	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
 
-	print_trapframe(tf);
-	env_destroy(curenv);
+		print_trapframe(tf);
+		env_destroy(curenv);
 }

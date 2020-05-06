@@ -37,6 +37,7 @@ sched_yield(void)
 	else{
 		id = curenv->env_id;
 	}
+	cprintf("CPU IS %d\n",cpunum());
 	for(i=id+1;i<NENV;i++){
 		if(envs[i].env_status == ENV_RUNNABLE){
 			env_run(&envs[i]); //ContextSwitch

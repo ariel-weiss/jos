@@ -111,6 +111,7 @@ TRAPHANDLER_NOEC(hsyscall, T_SYSCALL)
  * Lab 3: Your code here for _alltraps
  */
  _alltraps:
+
  # Build trap frame.
  pushl %ds
  pushl %es
