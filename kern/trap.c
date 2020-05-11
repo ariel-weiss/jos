@@ -244,7 +244,7 @@ trap_dispatch(struct Trapframe *tf)
 		lapic_eoi();
 		sched_yield();
 		panic("Error trap: return after clock\n");
-	}
+	}//until here goodman
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	if(tf->tf_trapno >= 0 && tf->tf_trapno <= 15 && curenv->env_upcalls[tf->tf_trapno]) {
