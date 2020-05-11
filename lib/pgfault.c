@@ -43,3 +43,24 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 		panic("Error in set_pgfault_handler: pgfault_upcall\n");
 	}
 }
+
+
+void
+set_exception_handler(uint32_t trapno, void (*handler)(struct UTrapframe *utf))
+{
+		int r;
+
+		if (_pgfault_handler == 0) {
+			// First time through!
+			// LAB 4: Your code here.
+			r  = sys_page_alloc(0, (void*)(UXSTACKTOP - PGSIZE), PTE_P | PTE_W | PTE_U);
+			if (r < 0){
+				panic("Error in set_pgfault_handler: ani gam bepanica\n");
+			}
+		}
+
+	// Save handler pointer for assembly to call.
+	_pgfault_handler = handler;
+	if(sys_env_set_upcall(0, trapno, _pgfault_upcall) < 0)
+		panic("Error in set_pgfault_handler: in sys_env_set_upcall");
+}

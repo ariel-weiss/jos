@@ -133,7 +133,7 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	struct Env* env;
 	int res = envid2env(envid,&env,1);
 	if(res < 0) return -E_BAD_ENV;
-	env->env_pgfault_upcall = func;
+	env->env_upcalls[T_PGFLT] = func;
 	return 0;
 }
 
@@ -363,6 +363,18 @@ sys_ipc_recv(void *dstva)
 		return 0;
 	}
 
+static int
+sys_env_set_upcall(envid_t envid, uint32_t trapno, void *func)
+{
+	// LAB 4: Your code here.
+	struct Env * env;
+	if(envid2env(envid, &env, 1)) return -E_BAD_ENV;
+	if(trapno >= 0 && trapno <= 15)
+		env->env_upcalls[trapno] = func;
+	return 0;
+}
+
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -397,6 +409,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		{ return sys_page_unmap((envid_t) a1,(void*)a2); }
 		case SYS_env_set_pgfault_upcall:
 		{ return sys_env_set_pgfault_upcall((envid_t) a1,(void*)a2); }
+		case SYS_env_set_upcall:
+		{ return sys_env_set_upcall((envid_t) a1,(uint32_t) a2,(void*)a3); }
 		case SYS_ipc_recv:
 		{return sys_ipc_recv((void*) a1);}
 		case SYS_ipc_try_send:

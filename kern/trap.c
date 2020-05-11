@@ -240,6 +240,30 @@ trap_dispatch(struct Trapframe *tf)
 		panic("Error trap: return after clock\n");
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
+	if(tf->tf_trapno >= 0 && tf->tf_trapno <= 15 && curenv->env_upcalls[tf->tf_trapno]) {
+		user_mem_assert(curenv,(void*)(UXSTACKTOP-1),1,PTE_P|PTE_W|PTE_U);
+
+		//struct UTrapframe* ufram = curenv->tf_esp; TODO mabye its good! maybe not
+		uintptr_t addr;
+		struct UTrapframe* ufram;
+		if(tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp <= UXSTACKTOP - 1){
+				addr = tf->tf_esp - sizeof(struct UTrapframe) - 4;
+				user_mem_assert(curenv, (void *) addr, 1, PTE_W);
+			}else{
+				addr = UXSTACKTOP - sizeof(struct UTrapframe);
+			}
+
+		ufram = (struct UTrapframe *) addr;
+		ufram->utf_fault_va = -1;
+		ufram->utf_err = curenv->env_tf.tf_err;
+		ufram->utf_regs = curenv->env_tf.tf_regs;
+		ufram->utf_eflags = curenv->env_tf.tf_eflags;
+		ufram->utf_eip = curenv->env_tf.tf_eip;
+		ufram->utf_esp = curenv->env_tf.tf_esp;
+		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_upcalls[tf->tf_trapno];
+		curenv->env_tf.tf_esp = addr;
+		env_run(curenv);
+	}
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
 		panic("unhandled trap in kernel");
@@ -360,7 +384,7 @@ page_fault_handler(struct Trapframe *tf)
 	//Set up stack frame for page fault on the uxstack
 
 		//Call the upcall
-		if(!curenv->env_pgfault_upcall){
+		if(!curenv->env_upcalls[T_PGFLT]){
 			cprintf("[%08x] user fault va %08x ip %08x\n",
 				curenv->env_id, fault_va, tf->tf_eip);
 				//Remaining three checks
@@ -388,7 +412,7 @@ page_fault_handler(struct Trapframe *tf)
 		ufram->utf_eflags = curenv->env_tf.tf_eflags;
 		ufram->utf_eip = curenv->env_tf.tf_eip;
 		ufram->utf_esp = curenv->env_tf.tf_esp;
-		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_upcalls[T_PGFLT];
 		curenv->env_tf.tf_esp = addr;
 		env_run(curenv);
 
