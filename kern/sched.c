@@ -30,9 +30,42 @@ sched_yield(void)
 
 	// LAB 4: Your code here.
 
+
+
+		int32_t id,i;
+
+		if (!curenv){
+			id = -1 ;
+		}
+		else{
+			id = ENVX(curenv->env_id);
+		}
+
+		for(i=id+1;i<NENV;i++){
+			if(envs[i].env_status == ENV_RUNNABLE){
+				env_run(&envs[i]); //ContextSwitch
+
+				return; //Should not return
+			}
+		}
+		for(i=0;i<id;i++){
+			if(envs[i].env_status == ENV_RUNNABLE){
+				env_run(&envs[i]); //ContextSwitch
+				return; //Should not return
+			}
+		}
+		if(curenv && curenv->env_status == ENV_RUNNING){
+			env_run(curenv); //ContextSwich
+
+			return; //Should not return
+		}
+
+
+
 	// sched_halt never returns
 	sched_halt();
 }
+
 
 // Halt this CPU when there is nothing to do. Wait until the
 // timer interrupt wakes it up. This function never returns.
@@ -80,4 +113,3 @@ sched_halt(void)
 		"jmp 1b\n"
 	: : "a" (thiscpu->cpu_ts.ts_esp0));
 }
-

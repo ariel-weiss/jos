@@ -25,16 +25,28 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+	  if(!((err & FEC_WR) && (uvpd[PDX(addr)] & PTE_P) &&
+				(uvpt[PGNUM(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_COW)))
+					panic("Error on pgfault: if it's dosnt Moo, its not a COW!\n");
 
-	// Allocate a new page, map it at a temporary location (PFTEMP),
-	// copy the data from the old page to the new page, then move the new
-	// page to the old page's address.
-	// Hint:
-	//   You should make three system calls.
+		// Allocate a new page, map it at a temporary location (PFTEMP),
+		// copy the data from the old page to the new page, then move the new
+		// page to the old page's address.
+		// Hint:
+		//   You should make three system calls.
 
-	// LAB 4: Your code here.
-
-	panic("pgfault not implemented");
+		// LAB 4: Your code here.
+		addr = ROUNDDOWN(addr, PGSIZE);
+		r = sys_page_alloc(0, PFTEMP, PTE_W|PTE_P|PTE_U);
+		if(r < 0)
+			panic("Error on pgfault: sys_page_alloc\n");
+		memcpy(PFTEMP, addr, PGSIZE);
+		r = sys_page_map(0, PFTEMP, 0, addr, PTE_W|PTE_P|PTE_U);
+		if(r < 0)
+			panic("Error on pgfault: sys_page_map\n");
+		r = sys_page_unmap(0, PFTEMP);
+		if(r < 0)
+			panic("Error on pgfault: nimas li mipanicim\n");
 }
 
 //
@@ -54,7 +66,15 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	void * addr = (void *) (pn * PGSIZE);
+	if((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
+		r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_P|PTE_U);
+		if(r<0) return -1;
+		r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_P|PTE_U);
+		if(r<0) return -1;
+	} else {
+		sys_page_map(0, addr, envid, addr, PTE_U|PTE_P);
+	}
 	return 0;
 }
 
@@ -78,7 +98,43 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	set_pgfault_handler(pgfault);
+
+	envid_t id = sys_exofork();
+	if(id < 0) {
+		panic("Error in fork: sys_exofork failed\n");
+	}
+	else if(id == 0) {
+		set_pgfault_handler(pgfault);
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+
+	uint32_t addr;
+	for(addr = 0; addr < USTACKTOP; addr += PGSIZE){
+			if((uvpd[PDX(addr)] & PTE_P) &&
+			 (uvpt[PGNUM(addr)] & PTE_P) &&
+			  (uvpt[PGNUM(addr)] & PTE_U))
+				{
+					duppage(id, PGNUM(addr));
+				}
+
+	}
+	int res;
+	if(sys_page_alloc(id, (void *) (UXSTACKTOP - PGSIZE), PTE_U|PTE_P|PTE_W) < 0)
+		panic("could not allocate exception stack");
+
+	extern void _pgfault_upcall();
+	res =  sys_env_set_pgfault_upcall(id, _pgfault_upcall);
+	if(res < 0)
+		panic("Error in fork: sys_env_set_pgfault_upcall\n");
+	res = sys_env_set_status(id, ENV_RUNNABLE);
+	if(res < 0)
+		panic("Error in fork: sys_env_set_status\n");
+
+	return id;
+
+
 }
 
 // Challenge!
