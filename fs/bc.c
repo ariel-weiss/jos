@@ -48,10 +48,10 @@ bc_pgfault(struct UTrapframe *utf)
 	// the disk.
 	//
 	// LAB 5: you code here:
-	addr = ROUNDDOWN(addr,PGSIZE);
+	addr = ROUNDDOWN(addr,BLKSIZE);
 	//step 1: allocate page in rnd_addr
-	r = sys_page_alloc(0, addr, PTE_P | PTE_W);
-	if (r < 0) panic("Error in bc_pgfault: not maspik memory\n");
+	r = sys_page_alloc(0, addr,PTE_U | PTE_P | PTE_W);
+	if (r < 0) panic("Error in bc_pgfault: not maspik memory r is {%d}\n",r);
 
 	//step 2: read content from disk to rnd_addr
 	int temp = BLKSIZE/SECTSIZE;
@@ -86,7 +86,7 @@ flush_block(void *addr)
 		panic("flush_block of bad va %08x", addr);
 
 	// LAB 5: Your code here.
-	addr = ROUNDDOWN(addr,PGSIZE);
+	addr = ROUNDDOWN(addr,BLKSIZE);
 	if(va_is_mapped(addr) && va_is_dirty(addr)){
 		int temp = BLKSIZE/SECTSIZE;
 		r = ide_write(blockno*temp, addr, temp);
@@ -104,10 +104,8 @@ static void
 check_bc(void)
 {
 	struct Super backup;
-
 	// back up super block
 	memmove(&backup, diskaddr(1), sizeof backup);
-
 	// smash it
 	strcpy(diskaddr(1), "OOPS!\n");
 	flush_block(diskaddr(1));
@@ -117,14 +115,11 @@ check_bc(void)
 	// clear it out
 	sys_page_unmap(0, diskaddr(1));
 	assert(!va_is_mapped(diskaddr(1)));
-
 	// read it back in
 	assert(strcmp(diskaddr(1), "OOPS!\n") == 0);
-
 	// fix it
 	memmove(diskaddr(1), &backup, sizeof backup);
 	flush_block(diskaddr(1));
-
 	cprintf("block cache is good\n");
 }
 
