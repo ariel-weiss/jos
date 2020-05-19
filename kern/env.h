@@ -18,6 +18,7 @@ void	env_create(uint8_t *binary, enum EnvType type);
 void	env_destroy(struct Env *e);	// Does not return if e == curenv
 
 int	envid2env(envid_t envid, struct Env **env_store, bool checkperm);
+void region_alloc(struct Env *e, void *va, size_t len);
 // The following two functions do not return
 void	env_run(struct Env *e) __attribute__((noreturn));
 void	env_pop_tf(struct Trapframe *tf) __attribute__((noreturn));

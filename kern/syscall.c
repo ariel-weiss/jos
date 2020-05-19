@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/elf.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -395,7 +396,66 @@ sys_env_set_upcall(envid_t envid, uint32_t trapno, void *func)
 	return 0;
 }
 
+/**
+* Make sure the elf is valid before using this syscall
+**/
+static void inner_exec(struct Proghdr * ph,struct Proghdr *eph,void* code){
+	for (; ph < eph; ph++) {
+		if(ph->p_type == ELF_PROG_LOAD) {
+			region_alloc(curenv, (void *) ph->p_va, ph->p_memsz);
 
+			memset((void *) ph->p_va, 0, ph->p_memsz);
+			memcpy((void *) ph->p_va, code + ph->p_offset, ph->p_filesz);
+		}
+	}
+}
+static envid_t
+sys_exec(void* code, const char **argv) {
+	struct  Elf * head = (struct Elf *) code;
+	uint32_t arguments_num;
+	size_t string_size = 0;
+	char arg_buf[100];
+	char * strings;
+	uintptr_t *argvs;
+	struct Proghdr *ph;
+	struct Proghdr *eph;
+
+	// load each program segment (ignores ph flags)
+	ph = (struct Proghdr *) ((uint8_t *) head + head->e_phoff);
+	eph = ph + head->e_phnum;
+	inner_exec(ph,eph,code);
+
+	for(arguments_num = 0; argv[arguments_num] != 0; arguments_num++) {
+		if(string_size + strlen(argv[arguments_num]) >= 100) break;
+		strcpy(arg_buf + string_size, argv[arguments_num]);
+		string_size += strlen(argv[arguments_num]) + 1;
+		arg_buf[string_size - 1] = '\0';
+	}
+
+	strings = (char *) USTACKTOP - string_size;
+	argvs = (uintptr_t *)(ROUNDDOWN(strings, 4) - 4 * (arguments_num + 1));
+
+	if((void *)(argvs - 2) < (void *) USTACKTOP - PGSIZE)
+		return - E_NO_MEM;
+
+	uint32_t i;
+	char *p = arg_buf;
+	for(i = 0; i < arguments_num; i++) {
+		argvs[i] = (intptr_t) strings;
+		strcpy(strings, p);
+		strings += strlen(p) + 1;
+		p += strlen(p) + 1;
+	}
+	argvs[arguments_num] = 0;
+	argvs[-1] = (intptr_t) argvs;
+	argvs[-2] = arguments_num;
+
+	curenv->env_tf.tf_eip = head->e_entry;
+	curenv->env_tf.tf_esp = (intptr_t) &argvs[-2];
+
+	sched_yield();
+
+}
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -438,6 +498,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		{ return sys_ipc_try_send((envid_t) a1, (uint32_t)a2,(void*) a3, (unsigned)a4);}
 		case SYS_env_set_trapframe:
 		{ return sys_env_set_trapframe((envid_t) a1,(struct Trapframe *)a2);  }
+		case SYS_exec:
+		{ return sys_exec((void *) a1, (const char **) a2); }
 
 	default:
 		return -E_INVAL;

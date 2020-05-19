@@ -18,6 +18,7 @@ enum {
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
 	SYS_env_set_upcall,
+	SYS_exec,
 	NSYSCALLS
 };
 
