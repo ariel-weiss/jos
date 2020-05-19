@@ -142,8 +142,8 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// bytes than requested.
 	// LAB 5: Your code here
 	int r;
-	// uint32_t buf_size = PGSIZE - (sizeof(int) + sizeof(size_t));
-	// if (n>buf_size) n = buf_size;  //TODO: maybe the BUG is here
+	uint32_t buf_size = PGSIZE - (sizeof(int) + sizeof(size_t));
+	if (n>buf_size) n = buf_size;
 	fsipcbuf.write.req_fileid = fd->fd_file.id;
 	fsipcbuf.write.req_n = n;
 	memmove(fsipcbuf.write.req_buf, buf, n);

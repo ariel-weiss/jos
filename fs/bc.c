@@ -91,11 +91,13 @@ flush_block(void *addr)
 		int temp = BLKSIZE/SECTSIZE;
 		r = ide_write(blockno*temp, addr, temp);
 		if(r < 0) panic("Error in flush_block: ide_write problem\n");
+		//clear the PTE_D bit
+		r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL);
+		if(r < 0)	panic("Error in flush_block, sys_page_map: %e", r);
 	}
 
-	//clear the PTE_D bit
-	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
-		panic("in bc_pgfault, sys_page_map: %e", r);
+
+
 }
 
 // Test that the block cache works, by smashing the superblock and

@@ -67,13 +67,16 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	void * addr = (void *) (pn * PGSIZE);
-	if((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
-		r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_P|PTE_U);
+	if (uvpt[pn] & PTE_SHARE){
+		sys_page_map(0, addr, envid, addr,(uvpt[pn] & PTE_SYSCALL));
+	}
+	else if((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW) ) {
+		r = sys_page_map(0, addr, envid, addr, ((uvpt[pn] & PTE_SYSCALL) & ~PTE_W) | PTE_COW); //TODO: MAYBE BUG HERE
 		if(r<0) return -1;
-		r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_P|PTE_U);
+		r = sys_page_map(0, addr, 0, addr, ((uvpt[pn] & PTE_SYSCALL) & ~PTE_W) | PTE_COW);
 		if(r<0) return -1;
 	} else {
-		sys_page_map(0, addr, envid, addr, PTE_U|PTE_P);
+		sys_page_map(0, addr, envid, addr, uvpt[pn] & PTE_SYSCALL);
 	}
 	return 0;
 }
