@@ -60,9 +60,20 @@ alloc_block(void)
 	// The bitmap consists of one or more blocks.  A single bitmap block
 	// contains the in-use bits for BLKBITSIZE blocks.  There are
 	// super->s_nblocks blocks in the disk altogether.
-
+//[000000000100]
+//[111111111011]
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	uint32_t blockno;
+
+
+	for(blockno=1 ; blockno < super->s_nblocks ; blockno++){
+		if(block_is_free(blockno)){
+			//Mark as not-free
+			bitmap[blockno/32] &= (~(1<<(blockno%32)));
+			flush_block(&bitmap[blockno/32]);
+			return blockno;
+		}
+	}
 	return -E_NO_DISK;
 }
 
@@ -112,7 +123,7 @@ fs_init(void)
 	// Set "bitmap" to the beginning of the first bitmap block.
 	bitmap = diskaddr(2);
 	check_bitmap();
-	
+
 }
 
 // Find the disk block number slot for the 'filebno'th block in file 'f'.
@@ -135,7 +146,28 @@ static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
        // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+       if(filebno >= NDIRECT + NINDIRECT) return -E_INVAL;
+			 int res;
+			//if(filebno > NDIRECT && !f_indirect && !alloc) return -E_NOT_FOUND;
+			 if(filebno <= NDIRECT)
+			 {
+				 	*ppdiskbno = &(f->f_direct[filebno]);
+			 }
+			 else
+			 {  // filebno is indirect
+				 if(!f->f_indirect){//indirect Not Allocated
+					 if(!alloc) return -E_NOT_FOUND;
+					 	res = alloc_block();
+						if (res < 0) return res;
+						f->f_indirect = res;
+					}
+					//Now Allocated:
+				  uint32_t* block = ( uint32_t*)diskaddr(f->f_indirect);
+				 	*ppdiskbno = &(block[filebno-NDIRECT]);
+
+			 }
+			 return 0;
+
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -150,7 +182,20 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
        // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+		int r;
+		uint32_t* ppdiskbno;
+		r = file_block_walk(f,filebno,&ppdiskbno,1);
+		if(r<0)return r;
+
+		if(!(*ppdiskbno)){//Slot not allocated
+			r = alloc_block();
+			if(r<0) return r;
+			*ppdiskbno = r;
+		}
+		//Now Allocated:
+		*blk = diskaddr(*ppdiskbno);
+
+		return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -453,4 +498,3 @@ fs_sync(void)
 	for (i = 1; i < super->s_nblocks; i++)
 		flush_block(diskaddr(i));
 }
-

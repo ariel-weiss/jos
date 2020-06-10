@@ -11,7 +11,6 @@ umain(int argc, char **argv)
 {
 	envid_t who;
 	int i;
-
 	// fork a child process
 	who = dumbfork();
 
@@ -20,6 +19,7 @@ umain(int argc, char **argv)
 		cprintf("%d: I am the %s!\n", i, who ? "parent" : "child");
 		sys_yield();
 	}
+
 }
 
 void
@@ -77,4 +77,3 @@ dumbfork(void)
 
 	return envid;
 }
-

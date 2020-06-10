@@ -5,6 +5,7 @@
 #define UTEMP2			(UTEMP + PGSIZE)
 #define UTEMP3			(UTEMP2 + PGSIZE)
 
+
 // Helper functions for spawn.
 static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 static int map_segment(envid_t child, uintptr_t va, size_t memsz,
@@ -301,6 +302,75 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	uint32_t addr;
+	for(addr = 0; addr < USTACKTOP; addr += PGSIZE){
+			if((uvpd[PDX(addr)] & PTE_P) &&
+			  (uvpt[PGNUM(addr)] & PTE_P) &&
+			  (uvpt[PGNUM(addr)] & PTE_U) &&
+			  (uvpt[PGNUM(addr)] & PTE_SHARE))
+				{
+					//if (uvpt[PGNUM(addr)] & PTE_SHARE){
+						// void * full_addr = (void *) (PGNUM(addr) * PGSIZE);
+						sys_page_map(0, (void*)addr, child, (void*)addr,(uvpt[PGNUM(addr)] & PTE_SYSCALL));
+					//}
+				}
+
+	}
+
 	return 0;
 }
 
+
+//exec implementation:
+envid_t
+exec(const char *prog, const char **argv)
+{
+	struct Elf *elf;
+	struct Proghdr *ph;
+	unsigned char elf_buf[512];
+	struct Stat stat_buf;
+	envid_t child_id;
+  intptr_t cpy_va = 0xe0000000;
+	int fd,r;
+
+
+	fd = open(prog, O_RDONLY);
+	if (fd<0) return fd;
+
+	r = fstat(fd, &stat_buf);
+	if (r<0)  return - E_INVAL;
+
+	uint32_t i;
+	uint32_t total_size = ROUNDUP(cpy_va + stat_buf.st_size, PGSIZE);
+	//Alloc space for the file and read
+	for(i = cpy_va; i < total_size; i += PGSIZE) {
+		if((r = sys_page_alloc(0, (void *) i, PTE_P | PTE_W | PTE_U)) < 0){
+			sys_env_destroy(0);
+			close(fd);
+			cprintf("Error in exec: at sys_page_alloc,  %e\n", r);
+			return r;
+		}
+		readn(fd, (void *)i, PGSIZE);
+	}
+
+	// Read elf header
+	elf = (struct Elf*) cpy_va;
+	if (elf->e_magic != ELF_MAGIC) {
+		close(fd);
+		cprintf("Error in exec: elf magic %08x want %08x\n", elf->e_magic, ELF_MAGIC);
+		return -E_NOT_EXEC;
+	}
+
+	// Create new child with exec syscall
+	if ((r = sys_exec((void *) cpy_va, argv)) < 0) {
+		cprintf("Error in exec: at sys_exec,  %e\n", r);
+		sys_env_destroy(0);
+		close(fd);
+		return r;
+	}
+
+	child_id = r;
+	close(fd);
+
+	return child_id;
+}

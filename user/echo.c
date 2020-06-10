@@ -18,4 +18,6 @@ umain(int argc, char **argv)
 	}
 	if (!nflag)
 		write(1, "\n", 1);
+
+
 }

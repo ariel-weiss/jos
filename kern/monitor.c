@@ -11,6 +11,7 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/trap.h>
+#include <kern/pmap.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -25,6 +26,11 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Backtrace", mon_backtrace },
+	{ "showmaps", "Display all of the physical page mappings", mon_showmaps },
+	{ "setprems", "Set premissions of given mapping. [11 -> UW, 10 -> U, 01 -> W, 00 -> N/A] ", mon_setprems },
+	{ "padump", "Dump memory content from given *PHYSICAL* address", mon_padump },
+	{ "vadump", "Dump memory content from given *VIRTUAL* address", mon_vadump },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -60,10 +66,199 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	uint32_t ebp = read_ebp(), args[5];
+	cprintf("Stack backtrace:\n");
+
+	do {
+		uint32_t eip  = *(uint32_t *)(ebp + 4);
+        args[0] = ((uint32_t *)ebp)[2];
+        args[1] = ((uint32_t *)ebp)[3];
+        args[2] = ((uint32_t *)ebp)[4];
+        args[3] = ((uint32_t *)ebp)[5];
+        args[4] = ((uint32_t *)ebp)[6];
+
+		cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
+			ebp, eip, args[0], args[1], args[2], args[3], args[4]);
+
+		struct Eipdebuginfo dgi;
+		int res = debuginfo_eip(eip, &dgi);
+		if(res == 0) {
+			cprintf("\t   %s:%d: %.*s+%d\n",dgi.eip_file, dgi.eip_line,
+			 dgi.eip_fn_namelen, dgi.eip_fn_name, eip - dgi.eip_fn_addr);
+			// cprintf("[1m         %s:%d: %.*s+%d[0m\n",
+      //           dbinfo.eip_file, dbinfo.eip_line, dbinfo.eip_fn_namelen,
+      //           dbinfo.eip_fn_name, eip - dbinfo.eip_fn_addr);
+		}
+	} while((ebp = *(uint32_t *)ebp) != 0x0);
+
 	return 0;
 }
 
+int
+mon_showmaps(int argc, char **argv, struct Trapframe *tf)
+{
 
+	if(argc<2 || argc>3){
+			cprintf("Wrong arguments!!!\n");
+			return 0;
+	}
+	uint32_t low_vaddr = (uint32_t)strtol(argv[1], NULL, 16);
+	uint32_t high_vaddr;
+	if(argc<3){
+		high_vaddr = low_vaddr + PGSIZE;
+	}else{
+		high_vaddr = (uint32_t)strtol(argv[2], NULL, 16);
+	}
+	pte_t * cuu_page;
+	uint32_t addr;
+	uint32_t prem;
+	uint32_t i=0;
+	char prem_str[4] = {'-','-','-'};
+	for(i=low_vaddr; i<high_vaddr; i += PGSIZE){
+		cuu_page = pgdir_walk(kern_pgdir, (void*)i, 0);
+		if(!cuu_page) {
+					cprintf("Page ###: \tVA:%8x \tMapping: NONE \tPremissions: --- \n",i);
+					continue;
+		}
+		addr = PGNUM(*cuu_page) << PTXSHIFT;
+		prem = PGOFF(*cuu_page);
+		if (prem & PTE_P) prem_str[0] = 'P';
+		if (prem & PTE_W) prem_str[1] = 'W';
+		if (prem & PTE_U) prem_str[2] = 'U';
+		cprintf("Page #%3u: \tVA:%8x \tMapping: %8x \tPremissions: %s \n",PGNUM(*cuu_page),i,addr,prem_str);
+		prem_str[0] = '-';prem_str[1] = '-';prem_str[2] = '-';
+	}
+
+	return 0;
+}
+int
+mon_setprems(int argc, char **argv, struct Trapframe *tf)
+{
+	if(argc != 3 ){
+			cprintf("Wrong arguments!!!\n");
+			return 0;
+	}
+	uint32_t given_prems = (uint32_t)strtol(argv[2], NULL, 10);
+	if (given_prems != 10 && given_prems != 11 && given_prems != 1 && given_prems != 0){
+		cprintf("Wrong premissions!!!\n");
+		return 0;
+	}
+
+	pte_t * cuu_page;
+	uint32_t given_va = (uint32_t)strtol(argv[1], NULL, 16);
+
+	uint32_t prem;
+	cuu_page = pgdir_walk(kern_pgdir, (void*)given_va, 0);
+	if(!cuu_page || *cuu_page == 0x0) {
+		cprintf("VA: %x is not exist",given_va);
+		return 0;
+	}
+	switch(given_prems){
+		case 11: {*cuu_page = *cuu_page | PTE_W | PTE_U; break; }
+		case 10: {*cuu_page = (*cuu_page | PTE_U) & (~PTE_W); break; }
+		case 1: {*cuu_page = (*cuu_page | PTE_W) & (~PTE_U); break;}
+		case 0: {*cuu_page = (*cuu_page & (~PTE_W)) & (~PTE_U); break;}
+		default: return 0;
+	}
+
+	mon_showmaps(2,argv,tf);
+	return 0;
+}
+int
+mon_vadump(int argc, char **argv, struct Trapframe *tf)
+{
+	uint32_t flag = 0;
+	uint32_t low_vaddr = (uint32_t)strtol(argv[1], NULL, 16);
+	uint32_t high_vaddr;
+	uint32_t size;
+	if(argc<2 || argc>4){
+			cprintf("Wrong arguments!!!\n");
+			return 0;
+	}
+	if(argc<3){
+		high_vaddr = low_vaddr + 1;
+	}
+	if(argc>=3){
+		high_vaddr = (uint32_t)strtol(argv[2], NULL, 16);
+	}
+	if(argc == 4){
+		if(*argv[3] == 'y' || *argv[3] == 'Y' || *argv[3] == 't' || *argv[3] == 'T'){
+			flag = 1;
+		}
+	}
+	pte_t * cuu_page;
+	uint32_t addr,addr_end;
+	uint32_t i=0,j=0,k=0;
+	for(i=low_vaddr; i<high_vaddr; i += (PGSIZE-PGOFF(i))){
+		cuu_page = pgdir_walk(kern_pgdir, (void*)i, 0);
+		if(!cuu_page || *cuu_page == 0x0) {
+					cprintf("VA[%8x] is not mapped!\n",i);
+					continue;
+		}
+		addr = PGNUM(*cuu_page) << PTXSHIFT;
+		addr += PGOFF(i);
+		if (i + (PGSIZE-PGOFF(i)) >= high_vaddr){
+			size = high_vaddr - i;
+			addr_end = addr + size;
+		}
+		else{
+			addr_end = addr + (PGSIZE-PGOFF(i));
+		}
+		for(j=addr; j<addr_end; j +=4){
+			k=(PGNUM(i) << PTXSHIFT) + PGOFF(j);
+			if (flag){
+				cprintf("%x:\t%x\t\n",k,*(uint32_t*)(j+KERNBASE));
+			}
+			else{
+				cprintf("%8x:\t%2x\t",k,*(uint32_t*)(j+KERNBASE) & 0xFF);  //extract first byte
+				cprintf("%8x:\t%2x\t",k+1,*(uint32_t*)(j+KERNBASE)>>8 & 0xFF); //extract second byte
+				cprintf("%8x:\t%2x\t",k+2,*(uint32_t*)(j+KERNBASE)>>16 & 0xFF); //extract third byte
+				cprintf("%8x:\t%2x\n",k+3,*(uint32_t*)(j+KERNBASE)>>24 & 0xFF); //extract fourth byte
+			}
+		}
+	}
+	return 0;
+}
+
+int
+mon_padump(int argc, char **argv, struct Trapframe *tf)
+{
+	uint32_t flag=0;
+	if(argc<2 || argc>4){
+			cprintf("Wrong arguments!!!\n");
+			return 0;
+	}
+	if(argc == 4){
+		if(*argv[3] == 'y' || *argv[3] == 'Y' || *argv[3] == 't' || *argv[3] == 'T'){
+			flag = 1;
+		}
+	}
+	uint32_t low_paddr = (uint32_t)strtol(argv[1], NULL, 16);
+	uint32_t high_paddr;
+	if(argc<3){
+		high_paddr = low_paddr + 1;
+	}else{
+		high_paddr = (uint32_t)strtol(argv[2], NULL, 16);
+	}
+	pte_t * cuu_page;
+	uint32_t addr;
+	int i;
+	for(i=low_paddr; i<high_paddr; i +=4){
+		if (flag){
+			cprintf("%x:\t%x\t\n",i,*(uint32_t*)(i+KERNBASE));
+		}
+		else{
+			cprintf("%x:\t%x\t",i,*(uint32_t*)(i+KERNBASE) & 0xFF);  //extract first byte
+			cprintf("%x:\t%x\t",i+1,*(uint32_t*)(i+KERNBASE)>>8 & 0xFF); //extract second byte
+			cprintf("%x:\t%x\t",i+2,*(uint32_t*)(i+KERNBASE)>>16 & 0xFF); //extract third byte
+			cprintf("%x:\t%x\n",i+3,*(uint32_t*)(i+KERNBASE)>>24 & 0xFF); //extract fourth byte
+		}
+
+	}
+
+
+	return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 

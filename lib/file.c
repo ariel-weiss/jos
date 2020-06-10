@@ -141,7 +141,31 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	int r;
+	uint32_t buf_size = PGSIZE - (sizeof(int) + sizeof(size_t));
+	if (n>buf_size) n = buf_size;
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	fsipcbuf.write.req_n = n;
+	memmove(fsipcbuf.write.req_buf, buf, n);
+
+	if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
+		return r;
+	return r;
+
+	// fsipc(unsigned type, void *dstva)
+	// struct Fsreq_write {
+	// 	int req_fileid;
+	// 	size_t req_n;
+	// 	char req_buf[PGSIZE - (sizeof(int) + sizeof(size_t))];
+
+	// Send an inter-environment request to the file server, and wait for
+	// a reply.  The request body should be in fsipcbuf, and parts of the
+	// response may be written back to fsipcbuf.
+	// type: request code, passed as the simple integer IPC value.
+	// dstva: virtual address at which to receive reply page, 0 if none.
+	// Returns result from the file server.
+
+
 }
 
 static int
@@ -177,4 +201,3 @@ sync(void)
 
 	return fsipc(FSREQ_SYNC, NULL);
 }
-
