@@ -14,6 +14,7 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 #define RING0_DPL 0
 #define RING3_DPL 3
@@ -260,6 +261,10 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 
+	if(tf->tf_trapno == IRQ_OFFSET + e1000_irq){
+	        e1000_trap_handler();
+	        return;
+	}
 
 
 	// Unexpected trap: The user process or the kernel has a bug.

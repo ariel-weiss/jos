@@ -274,6 +274,7 @@ memset(e->env_upcalls, 0, sizeof(void *) * 16);
 	env_free_list = e->env_link;
 	*newenv_store = e;
 
+e->e1000_waiting = false;
 	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }

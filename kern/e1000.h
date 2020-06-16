@@ -2,10 +2,14 @@
 #define JOS_KERN_E1000_H
 #include <kern/pci.h>
 
+extern uint8_t e1000_irq;
+
 // Kernel functions
 int attach_E1000(struct pci_func *pcif);
 int E1000_transmit(void * data_addr, uint16_t length);
 int E1000_receive(void * data_addr, uint16_t *len_store);
+
+void e1000_trap_handler(void);
 
 #define E1000_TXDARR_LEN     32 /* Length of the transmit descriptor ring */
 
@@ -125,6 +129,39 @@ typedef uint8_t packet_t[2048];
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 #define E1000_MTA_LEN  0x200    /* Length of the MTA */
 #define E1000_RAL      0x05400  /* Receive Address - RW Array */
-#define E1000_RAH      0x05404  
+#define E1000_RAH      0x05404
+
+/* EEPROM.EERD Bit Definitions */
+#define E1000_EERD_START        0x00000001
+#define E1000_EERD_DONE         0x00000010
+#define E1000_EERD_MAC_WD0      0x00000000
+#define E1000_EERD_MAC_WD1      0x00000100
+#define E1000_EERD_MAC_WD2      0x00000200
+#define E1000_EERD_DATA_SHIFT   0x10
+
+/* Ethernet Specifications */
+#define E1000_ETH_MAC_HIGH      (uint32_t)0x80005634
+#define E1000_ETH_MAC_LOW       (uint32_t)0x12005452
+#define E1000_ETH_PACKET_LEN    1518
+
+
+#define E1000_RXT0	0x00000080
+#define E1000_RCTL_LBM_NO       0xffffff3f /* no loopback mode, 6 & 7 bit set to 0 */
+#define E1000_RSRPD    0x02C00  /* RX Small Packet Detect - RW */
+#define E1000_ICR_SRPD          0x00010000
+#define E1000_IMS_SRPD      E1000_ICR_SRPD
+#define E1000_ICR_RXO           0x00000040 /* rx overrun */
+#define E1000_IMS_RXO       E1000_ICR_RXO       /* rx overrun */
+#define E1000_ICR_RXSEQ         0x00000008 /* rx sequence error */
+#define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
+#define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
+#define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
+#define E1000_ICR_TXQE          0x00000002 /* Transmit Queue empty */
+#define E1000_IMS_TXQE      E1000_ICR_TXQE      /* Transmit Queue empty */
+
+#define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
+#define E1000_ICR      0x000C0  /* Interrupt Cause Read - R/clr */
+#define E1000_ITR      0x000C4  /* Interrupt Throttling Rate - RW */
+#define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
 
 #endif	// JOS_KERN_E1000_H

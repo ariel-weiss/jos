@@ -484,7 +484,13 @@ sys_recv_packet(void *dstva, uint16_t *len_store)
     if (user_mem_check(curenv, dstva, E1000_ETH_PACKET_LEN, PTE_U|PTE_W) < 0)
         return -E_INVAL;
 
-    return E1000_receive(dstva, len_store);
+		int r = E1000_receive(dstva, len_store);
+		if(r == 0 ) return 0;
+		curenv->env_status = ENV_NOT_RUNNABLE;
+		curenv->e1000_waiting = true;
+		curenv->env_tf.tf_regs.reg_eax = -E_RXD_EMPTY;
+		sys_yield();
+    return r;
 }
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t

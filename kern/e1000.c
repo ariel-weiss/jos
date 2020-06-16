@@ -1,7 +1,10 @@
 #include <kern/e1000.h>
 #include <kern/pmap.h>
-#include <inc/string.h>
 #include <inc/error.h>
+#include <kern/picirq.h>
+#include <kern/cpu.h>
+#include <kern/env.h>
+#include <inc/string.h>
 
 // LAB 6: Your driver code here
 
@@ -10,7 +13,7 @@ struct e1000_tx_desc txd_arr[E1000_TXDARR_LEN] __attribute__((aligned(4096)));
 struct e1000_rx_desc rxd_arr[E1000_RXDARR_LEN] __attribute__((aligned(4096)));
 packet_t txd_bufs[E1000_TXDARR_LEN] __attribute__((aligned(4096)));
 packet_t rxd_bufs[E1000_RXDARR_LEN] __attribute__((aligned(4096)));
-
+uint8_t e1000_irq;
 /* Reset the TXD array entry corresponding to the given
  * index such that it may be resused for another packet.
  */
@@ -67,6 +70,15 @@ int attach_E1000(struct pci_func *pcif)
     for ( i = 0; i< E1000_RXDARR_LEN; i++)
         _reset_rdr(i);
     *(uint32_t *)(e1000addr+E1000_RCTL) = (E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_BSIZE | E1000_RCTL_SECRC);
+
+    e1000_irq = pcif->irq_line;
+    *(uint32_t *)(e1000addr+E1000_IMS)  |= E1000_RXT0;
+
+    *(uint32_t *)(e1000addr+E1000_IMS)  |= (E1000_IMS_RXSEQ | E1000_IMS_RXO | E1000_IMS_RXT0|E1000_IMS_TXQE);
+    *(uint32_t *)(e1000addr+E1000_RCTL) &= E1000_RCTL_LBM_NO;
+
+    irq_setmask_8259A(irq_mask_8259A & ~(1 << e1000_irq));
+
     return 0;
 }
 
@@ -105,4 +117,39 @@ int E1000_receive(void * data_addr, uint16_t *len_store)
     *(uint32_t *)(e1000addr+E1000_RDT) = nextindex;
     nextindex = (nextindex+1)%E1000_RXDARR_LEN;
     return 0;
+}
+
+
+void
+clear_e1000_interrupt(void)
+{
+    *(uint32_t *)(e1000addr+E1000_ICR) |= E1000_RXT0;
+	lapic_eoi();
+	irq_eoi();
+}
+
+void
+e1000_trap_handler(void)
+{
+	struct Env* waiting = NULL;
+	int i;
+
+    for (i = 0; i < NENV; i++) {
+        if (envs[i].e1000_waiting == true){
+            waiting = &envs[i];
+        }
+    }
+
+	if (!waiting) {
+		clear_e1000_interrupt();
+		return;
+	}
+
+	else {
+		waiting->env_status = ENV_RUNNABLE;
+		waiting->e1000_waiting = false;
+		clear_e1000_interrupt();
+        env_run(waiting);
+		return;
+	}
 }
