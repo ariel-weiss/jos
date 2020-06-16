@@ -21,6 +21,7 @@ enum {
 	SYS_env_set_upcall,
 	SYS_exec,
 	SYS_send_packet,
+	SYS_recv_packet,
 	NSYSCALLS
 };
 

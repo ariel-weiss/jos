@@ -63,6 +63,8 @@ int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 int sys_send_packet(void *srcva, size_t len);
+int sys_recv_packet(void *srcva, size_t *len_store);
+
 
 
 unsigned int sys_time_msec(void);

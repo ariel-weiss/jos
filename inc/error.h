@@ -26,6 +26,8 @@ enum {
 	E_NOT_EXEC	,	// File not a valid executable
 	E_NOT_SUPP	,	// Operation not supported
 
+  E_TXD_FULL      ,       // Transmit buffer full
+  E_RXD_EMPTY     ,       // Receive buffer empty
 	MAXERROR
 };
 
