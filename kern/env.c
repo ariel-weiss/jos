@@ -262,7 +262,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
-
+memset(e->env_upcalls, 0, sizeof(void *) * 16);
 	e->env_tf.tf_eflags = e->env_tf.tf_eflags | FL_IF;
 	// Clear the page fault handler until user installs one.
 	memset(e->env_upcalls, 0, sizeof(void *) * 16);
@@ -292,21 +292,24 @@ region_alloc(struct Env *e, void *va, size_t len)
 	// (But only if you need it for load_icode.)
 	//
 	// Hint: It is easier to use region_alloc if the caller can pass
-	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
-	//   (Watch out for corner-cases!)
-	uint32_t start = ROUNDDOWN((uint32_t)va,PGSIZE);
-	uint32_t end = ROUNDUP((uint32_t)va + len,PGSIZE);
-	uint32_t i;
+				uintptr_t va_round = ROUNDDOWN((uintptr_t)va, PGSIZE);
+         //size_t len_round = ROUNDUP(len, PGSIZE);
+         size_t len_round = ROUNDUP(((uintptr_t)va-va_round)+len, PGSIZE);
+         uintptr_t va_iter;
+         uintptr_t va_removeiter; // Only used if allocation fails
 
-	for(i = start; i < end; i += PGSIZE){
-		struct PageInfo * pg = page_alloc(0);
-		if(!pg)
-					  panic("Error in region_alloc: allocation attempt failed!\n");
-		if(page_insert(e->env_pgdir, pg, (void *)i, PTE_W | PTE_U | PTE_P ) == -E_NO_MEM)
-						panic("Error in region_alloc: page_insert failed!\n");
-	}
+         for (va_iter = 0; va_iter < len_round; va_iter+=PGSIZE){
+             struct PageInfo *alloc_page = page_alloc(ALLOC_ZERO);
+             if (alloc_page == NULL){
+                 // Page allocation failed! Remove all previously allocated pages
+                 for (va_removeiter = 0; va_removeiter < va_iter; va_removeiter+=PGSIZE)
+                     page_remove(e->env_pgdir, (void *)(va_round+va_removeiter));
 
+                 panic("region_alloc: out of free memory");
+             }
+             page_insert(e->env_pgdir, alloc_page, (void *)(va_round+va_iter), PTE_W | PTE_U | PTE_P);
+         }
 }
 
 //

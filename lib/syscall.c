@@ -84,7 +84,11 @@ sys_page_unmap(envid_t envid, void *va)
 {
 	return syscall(SYS_page_unmap, 1, envid, (uint32_t) va, 0, 0, 0);
 }
-
+int
+sys_send_packet(void *srcva, size_t len)
+{
+	return syscall(SYS_send_packet, 1, (uint32_t)srcva, (uint32_t)len, 0, 0, 0);
+}
 // sys_exofork is inlined in lib.h
 
 int
