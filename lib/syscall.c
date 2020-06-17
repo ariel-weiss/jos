@@ -55,6 +55,13 @@ sys_env_destroy(envid_t envid)
 	return syscall(SYS_env_destroy, 1, envid, 0, 0, 0, 0);
 }
 
+void
+sys_get_macaddr(uint64_t *addr_store)
+{
+        syscall(SYS_get_macaddr, 0, (uint32_t) addr_store, 0, 0, 0, 0);
+}
+
+
 envid_t
 sys_getenvid(void)
 {

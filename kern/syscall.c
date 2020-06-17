@@ -63,6 +63,15 @@ sys_env_destroy(envid_t envid)
 	return 0;
 }
 
+
+
+static void
+sys_get_macaddr(uint64_t *addr_store)
+{
+    uint64_t macaddr = E1000_get_macaddr();
+    *addr_store = macaddr;
+}
+
 // Deschedule current environment and pick a different one to run.
 static void
 sys_yield(void)
@@ -542,6 +551,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 						return sys_send_packet((void *) a1, (size_t) a2);
 		case SYS_recv_packet:
 						return sys_recv_packet((void *) a1, (uint16_t *) a2);
+		case SYS_get_macaddr:
+        {sys_get_macaddr((uint64_t *) a1);
+            return 0;}
 
 	default:
 		return -E_INVAL;
