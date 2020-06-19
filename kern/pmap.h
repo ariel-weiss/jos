@@ -60,7 +60,7 @@ int	page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm);
 void	page_remove(pde_t *pgdir, void *va);
 struct PageInfo *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store);
 void	page_decref(struct PageInfo *pp);
-
+int	user_mem_phy_addr(struct Env *env, uintptr_t va, physaddr_t *pa_store);
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
 void *	mmio_map_region(physaddr_t pa, size_t size);

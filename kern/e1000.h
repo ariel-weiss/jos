@@ -1,6 +1,7 @@
 #ifndef JOS_KERN_E1002_H
 #define JOS_KERN_E1000_H
 #include <kern/pci.h>
+#include <kern/sched.h>
 
 extern uint8_t e1000_irq;
 

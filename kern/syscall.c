@@ -482,10 +482,15 @@ sys_exec(void* code, const char **argv) {
 static int
 sys_send_packet(void *srcva, size_t len)
 {
+		physaddr_t paddr;
     if (user_mem_check(curenv, srcva, len, PTE_U) < 0)
         return -E_INVAL;
-
-    return E1000_transmit(srcva, len);
+int r;
+		r = user_mem_phy_addr(curenv,(uintptr_t) srcva, &paddr);
+		if (r < 0)
+			return r;
+		else
+    	return E1000_transmit((void *)paddr, len);
 }
 static int
 sys_recv_packet(void *dstva, uint16_t *len_store)

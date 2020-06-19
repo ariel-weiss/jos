@@ -852,6 +852,24 @@ check_page_alloc(void)
 	cprintf("check_page_alloc() succeeded!\n");
 }
 
+
+
+int
+user_mem_phy_addr(struct Env *env, uintptr_t va, physaddr_t *pa_store)
+{
+	int r;
+	if ((r = user_mem_check(env, (void *)va, 0, PTE_U)) < 0) {
+		*pa_store = 0;
+		return r;
+	}
+
+	physaddr_t pa = 0;
+	struct PageInfo *pp;
+	pp = page_lookup(curenv->env_pgdir, (void *)va, 0);
+	*pa_store = page2pa(pp) | PGOFF(va);
+
+	return 0;
+}
 //
 // Checks that the kernel part of virtual address space
 // has been setup roughly correctly (by mem_init()).

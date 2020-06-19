@@ -46,9 +46,9 @@ uint64_t E1000_get_macaddr()
 /* Reset the TXD array entry corresponding to the given
  * index such that it may be resused for another packet.
  */
-void _reset_tdr(int index)
+void _reset_tdr(int index,void * data_addr)
 {
-    txd_arr[index].buffer_addr = (uint32_t)(PADDR(txd_bufs+index));
+    txd_arr[index].buffer_addr = (uint32_t)(data_addr);
     txd_arr[index].cso = 0;
     txd_arr[index].cmd = E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP;
     txd_arr[index].status = 0;
@@ -83,7 +83,7 @@ int E1000_attach(struct pci_func *pcif)
 
     // Initialize CMD bits for transmit descriptors
     for ( i = 0; i < E1000_TXDARR_LEN; i++){
-        _reset_tdr(i);
+        _reset_tdr(i, NULL);
         txd_arr[i].status = E1000_TXD_STAT_DD;
     }
 
@@ -107,9 +107,9 @@ int E1000_attach(struct pci_func *pcif)
     *(uint32_t *)(e1000addr+E1000_RCTL) = (E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_BSIZE | E1000_RCTL_SECRC);
 
     e1000_irq = pcif->irq_line;
+    /* For interrupts */
     *(uint32_t *)(e1000addr+E1000_IMS)  |= E1000_RXT0;
-
-    *(uint32_t *)(e1000addr+E1000_IMS)  |= (E1000_IMS_RXSEQ | E1000_IMS_RXO | E1000_IMS_RXT0|E1000_IMS_TXQE);
+    *(uint32_t *)(e1000addr+E1000_IMS)  |= (E1000_IMS_RXSEQ | E1000_IMS_RXO | E1000_IMS_RXT0 | E1000_IMS_TXQE);
     *(uint32_t *)(e1000addr+E1000_RCTL) &= E1000_RCTL_LBM_NO;
 
     irq_setmask_8259A(irq_mask_8259A & ~(1 << e1000_irq));
@@ -128,9 +128,9 @@ int E1000_transmit(void * data_addr, uint16_t length)
     if (length > E1000_ETH_PACKET_LEN)
         length = E1000_ETH_PACKET_LEN;
 
-    _reset_tdr(nextindex);  // Reset this TDR
+    _reset_tdr(nextindex,data_addr);  // Reset this TDR
     nextdesc->length = length;
-    memcpy((txd_bufs+nextindex), data_addr, length);
+
 
     nextindex = (nextindex+1)%E1000_TXDARR_LEN;
     *(uint32_t *)(e1000addr+E1000_TDT) = nextindex;
@@ -184,7 +184,8 @@ e1000_trap_handler(void)
 		waiting->env_status = ENV_RUNNABLE;
 		waiting->e1000_waiting = false;
 		clear_e1000_interrupt();
-        env_run(waiting);
+    sched_yield();
+        //env_run(waiting);
 		return;
 	}
 }
