@@ -65,6 +65,7 @@ low_level_init(struct netif *netif)
 
     uint64_t hwaddr = 0;
     sys_get_macaddr(&hwaddr);
+    
     for (i = 0; i < 6; i++)
       netif->hwaddr[i] = (uint8_t)((hwaddr>>(8*i)) & 0xff);
 }

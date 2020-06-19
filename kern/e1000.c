@@ -91,7 +91,8 @@ int E1000_attach(struct pci_func *pcif)
     //*(uint32_t *)(e1000addr+E1000_RAL) = E1000_ETH_MAC_LOW; // Set mac address for filtering
     //*(uint32_t *)(e1000addr+E1000_RAH) = E1000_ETH_MAC_HIGH;
     uint64_t macaddr_local = E1000_get_macaddr();
-    //panic("MAC: [%u %u]",(uint32_t)(macaddr_local>>32),(uint32_t)(macaddr_local & 0xffffffff));
+    //macaddr_local = 0x8000001122334400;
+    //panic("MAC: [%u %u]\n MACX: [%x %x]",(uint32_t)(macaddr_local>>32),(uint32_t)(macaddr_local & 0xffffffff),(uint32_t)(macaddr_local>>32),(uint32_t)(macaddr_local & 0xffffffff));
     *(uint32_t *)(e1000addr+E1000_RAL) = (uint32_t)(macaddr_local & 0xffffffff); // Set mac address for filtering
     *(uint32_t *)(e1000addr+E1000_RAH) = (uint32_t)(macaddr_local>>32);
 
