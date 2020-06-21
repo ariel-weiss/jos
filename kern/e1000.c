@@ -31,13 +31,13 @@ uint16_t _read_eeprom(uint32_t addr)
 
 uint64_t E1000_get_macaddr()
 {
-    if (macaddr > 0)
+    if (macaddr > 0) //If already loaded..
         return macaddr;
 
     uint64_t word0 = _read_eeprom(E1000_EERD_MAC_WD0);
     uint64_t word1 = _read_eeprom(E1000_EERD_MAC_WD1);
     uint64_t word2 = _read_eeprom(E1000_EERD_MAC_WD2);
-    uint64_t word3 = (uint64_t)0x8000;
+    uint64_t word3 = (uint64_t)0x8000; //Valid bit
     macaddr = word3<<48 | word2<<32 | word1<<16 | word0;
     return macaddr;
 }
@@ -148,6 +148,16 @@ int E1000_receive(void * data_addr, uint16_t *len_store)
     *len_store = nextdesc->length;
     memcpy(data_addr, (rxd_bufs+nextindex), nextdesc->length);
     _reset_rdr(nextindex);
+    // uint64_t pa = rd->addr;
+    // 	*rd = *rr;
+    // 	rr->addr = pa;
+    // 	rr->status = 0;
+    // rxd_arr[index].buffer_addr = (uint32_t)(PADDR(rxd_bufs+index));
+    // rxd_arr[index].status = 0;
+    // rxd_arr[index].special = 0;
+
+
+
 
     *(uint32_t *)(e1000addr+E1000_RDT) = nextindex;
     nextindex = (nextindex+1)%E1000_RXDARR_LEN;
@@ -184,8 +194,8 @@ e1000_trap_handler(void)
 		waiting->env_status = ENV_RUNNABLE;
 		waiting->e1000_waiting = false;
 		clear_e1000_interrupt();
-    sched_yield();
-        //env_run(waiting);
+    //sched_yield();
+    env_run(waiting);
 		return;
 	}
 }

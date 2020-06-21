@@ -29,7 +29,9 @@ output(envid_t ns_envid)
                 cprintf("Non-NSREQ_OUTPUT request sent to output\n");
                 continue;
             }
+						
             sys_send_packet((void *) pkt_page->jp_data, pkt_page->jp_len);
+
             sys_page_unmap(0, pkt_page);
         }
 }

@@ -33,17 +33,8 @@ input(envid_t ns_envid)
                 nsipc_page = nsipc_page_2;
             page1 = !page1;
 
-            // r = sys_recv_packet(&nsipc_page->pkt.jp_data, (size_t *)&nsipc_page->pkt.jp_len);
-            // if (r == -E_RXD_EMPTY){
-            //     sys_yield();
-            //     continue;
-            // }
-
 						while(sys_recv_packet(&nsipc_page->pkt.jp_data, (size_t *)&nsipc_page->pkt.jp_len) == -E_RXD_EMPTY);
 
-
-            // else if (r<0)
-            //     panic("error in sys_recv_packet, %e", r);
             ipc_send(ns_envid, NSREQ_INPUT, nsipc_page, PTE_P|PTE_W|PTE_U);
         }
 }
