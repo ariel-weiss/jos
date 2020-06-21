@@ -3,7 +3,6 @@
 #include "inc/error.h"
 
 extern union Nsipc nsipcbuf;
-
 void
 input(envid_t ns_envid)
 {
@@ -24,7 +23,7 @@ input(envid_t ns_envid)
         union Nsipc *nsipc_page_2 = (union Nsipc *)(REQVA+PGSIZE);
         bool page1 = true;
 
-        while (true)
+while (true)
         {
             union Nsipc *nsipc_page;
             if (page1)

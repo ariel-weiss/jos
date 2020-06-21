@@ -59,12 +59,12 @@ void _reset_tdr(int index,void * data_addr)
 /* Reset the RXD array entry corresponding to the given
  * index such that it may be reused for another packet.
  */
-void _reset_rdr(int index)
-{
-    rxd_arr[index].buffer_addr = (uint32_t)(PADDR(rxd_bufs+index));
-    rxd_arr[index].status = 0;
-    rxd_arr[index].special = 0;
-}
+// void _reset_rdr(int index)
+// {
+//     rxd_arr[index].buffer_addr = NULL;
+//     rxd_arr[index].status = 0;
+//     rxd_arr[index].special = 0;
+// }
 int E1000_attach(struct pci_func *pcif)
 {
     pci_func_enable(pcif);
@@ -103,7 +103,12 @@ int E1000_attach(struct pci_func *pcif)
     *(uint32_t *)(e1000addr+E1000_RDT) = E1000_RXDARR_LEN;
 
     for ( i = 0; i< E1000_RXDARR_LEN; i++)
-        _reset_rdr(i);
+    {
+        struct PageInfo *pp = page_alloc(1);
+        if (!pp) return -E_NO_MEM;
+        ++pp->pp_ref;
+        rxd_arr[i].buffer_addr = page2pa(pp) + HEAD_SIZE;
+    }
     *(uint32_t *)(e1000addr+E1000_RCTL) = (E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_BSIZE | E1000_RCTL_SECRC);
 
     e1000_irq = pcif->irq_line;
@@ -137,30 +142,35 @@ int E1000_transmit(void * data_addr, uint16_t length)
     return 0;
 }
 
-int E1000_receive(void * data_addr, uint16_t *len_store)
+
+int E1000_receive(void * page_addr, uint16_t *len_store)
 {
     static uint32_t nextindex = 0;
     struct e1000_rx_desc *nextdesc = (&rxd_arr[nextindex]);
+    if (!len_store) return -E_INVAL;
 
     if (!(nextdesc->status & E1000_RXD_STAT_DD))
         return -E_RXD_EMPTY; // Buffer is empty
 
-    *len_store = nextdesc->length;
-    memcpy(data_addr, (rxd_bufs+nextindex), nextdesc->length);
-    _reset_rdr(nextindex);
-    // uint64_t pa = rd->addr;
-    // 	*rd = *rr;
-    // 	rr->addr = pa;
-    // 	rr->status = 0;
-    // rxd_arr[index].buffer_addr = (uint32_t)(PADDR(rxd_bufs+index));
-    // rxd_arr[index].status = 0;
-    // rxd_arr[index].special = 0;
 
+    struct PageInfo *pp = pa2page(rxd_arr[nextindex].buffer_addr);
+    if (page_insert(curenv->env_pgdir, pp, page_addr ,PTE_W|PTE_U|PTE_P) < 0)
+        return -E_NO_MEM;
+    page_decref(pp);
+    *len_store = rxd_arr[nextindex].length;
+    // _reset_rdr(nextindex);
+    // memset(&rxd_arr[nextindex], 0, sizeof(rxd_arr[nextindex]));
 
+    //Allocating page for the NIC:
+    pp = page_alloc(1);
+    if (!pp) return -E_NO_MEM;
+	   rxd_arr[nextindex].buffer_addr = page2pa(pp) + HEAD_SIZE;
+	   ++pp->pp_ref;
+     *(uint32_t *)(e1000addr+E1000_RDT) = nextindex;
+    nextindex++;
+	  nextindex = nextindex % E1000_RXDARR_LEN;
 
-
-    *(uint32_t *)(e1000addr+E1000_RDT) = nextindex;
-    nextindex = (nextindex+1)%E1000_RXDARR_LEN;
+    // nextindex = (nextindex+1) % E1000_RXDARR_LEN;
     return 0;
 }
 

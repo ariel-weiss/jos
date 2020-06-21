@@ -184,5 +184,6 @@ typedef uint8_t packet_t[2048];
 #define E1000_ICR      0x000C0  /* Interrupt Cause Read - R/clr */
 #define E1000_ITR      0x000C4  /* Interrupt Throttling Rate - RW */
 #define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
+#define HEAD_SIZE 4
 
 #endif	// JOS_KERN_E1000_H
