@@ -141,25 +141,72 @@ send_header_fin(struct http_request *req)
 
 	return 0;
 }
+//
 
-// given a request, this function creates a struct http_request
-static int
-http_request_parse(struct http_request *req, char *request)
-{
+
+
+static void
+get_url_from_POST(struct http_request *req, char *request){
+	const char *url;
+	const char *file;
+	const char *version;
+	int url_len, version_len, file_len, quary_len;
+
+	// skip POST
+
+	request += 5;
+
+	file = request;
+	while (*request && *request != ' ')
+		request++;
+	file_len = request - file;
+
+	// skip space
+	request++;
+	// get the version:
+	version = request;
+	while (*request != '\n') //Only first line
+		request++;
+	version_len = request - version;
+
+	req->version = malloc(version_len + 1);
+	memmove(req->version, version, version_len);
+	req->version[version_len] = '\0';
+
+	// Now get the quary
+
+	char* quary = request;
+	while (*request){
+		if (*request == '\n')
+			quary = request +1;
+		request ++;
+	}
+
+	quary_len = request - quary;
+
+	int  i;
+	int url_size = file_len + quary_len + 2;
+	req->url = malloc(url_size);
+	//Combin together innto one URL: file?quary
+	for ( i = 0; i < file_len; i++) {
+			req->url[i] = file[i];
+	}
+	req->url[file_len] = '?';
+	for ( i = 0; i < quary_len; i++) {
+		req->url[file_len+i+1] = quary[i];
+	}
+	req->url[url_size] = '\0';
+
+}
+static void
+get_url_from_GET(struct http_request *req, char *request){
 	const char *url;
 	const char *version;
 	int url_len, version_len;
-
-	if (!req)
-		return -1;
-
-	if (strncmp(request, "GET ", 4) != 0)
-		return -E_BAD_REQ;
-
 	// skip GET
-	request += 4;
 
-	// get the url
+	request += 4 ;
+
 	url = request;
 	while (*request && *request != ' ')
 		request++;
@@ -181,7 +228,35 @@ http_request_parse(struct http_request *req, char *request)
 	memmove(req->version, version, version_len);
 	req->version[version_len] = '\0';
 
-	// no entity parsing
+
+}
+
+// given a request, this function creates a struct http_request
+static int
+http_request_parse(struct http_request *req, char *request)
+{
+
+
+	int isPost = 0;
+
+	if (!req)
+		return -1;
+
+	if (strncmp(request, "GET ", 4) != 0)
+	{
+		if(strncmp(request, "POST ", 5) == 0)
+			isPost = 1;
+		else
+			return -E_BAD_REQ;
+  }
+
+
+	// get the url for GET requests
+	if(!isPost)
+		get_url_from_GET(req, request);
+	else
+		get_url_from_POST(req, request);
+	
 
 	return 0;
 }

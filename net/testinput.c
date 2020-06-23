@@ -84,6 +84,9 @@ umain(int argc, char **argv)
 	if (input_envid < 0)
 		panic("error forking");
 	else if (input_envid == 0) {
+		int8_t c_buff[200];
+		memset(c_buff, 0, 200);
+		sys_set_net_classifier(c_buff);
 		input(ns_envid);
 		return;
 	}

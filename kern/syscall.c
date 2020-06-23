@@ -509,6 +509,7 @@ sys_recv_packet(void *dstva, uint16_t *len_store)
 				for ( i = 0; i < *len_store; i++) {
 					sum += curenv->net_classifier[i] * casted_dstva[i];
 				}
+
 				if (sum < 0){ // Our softmax-like function
 					return -E_DANGEROUS;
 				}
