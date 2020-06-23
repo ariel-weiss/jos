@@ -200,20 +200,9 @@ serve_thread(uint32_t a) {
 		break;
 	}
 	case NSREQ_BIND:
-	{
-		int uid = envs[ENVX(args->whom)].env_id;
-		struct sockaddr_in *addr = (struct sockaddr_in*)&req->bind.req_name;
-		if(uid != 0 && ntohs(addr->sin_port) < 1024)
-		{
-			r = -E_BAD_PERM;
-		}
-		else
-		{
-			r = lwip_bind(req->bind.req_s, &req->bind.req_name,
-							req->bind.req_namelen);
-		}
-	break;
-}
+		r = lwip_bind(req->bind.req_s, &req->bind.req_name,
+			      req->bind.req_namelen);
+		break;
 	case NSREQ_SHUTDOWN:
 		r = lwip_shutdown(req->shutdown.req_s, req->shutdown.req_how);
 		break;
@@ -237,20 +226,6 @@ serve_thread(uint32_t a) {
 		r = lwip_send(req->send.req_s, &req->send.req_buf,
 			      req->send.req_size, req->send.req_flags);
 		break;
-
-		case NSREQ_RECVFROM:
-        r = lwip_recvfrom(req->recvfrom.req_s, req->recvRet.ret_buf,
-                  req->recvfrom.req_len, req->recvfrom.req_flags,
-                  &req->recvfrom.srcaddr, &req->recvfrom.len);
-
-        break;
-
-    case NSREQ_SENDTO:
-		r = lwip_sendto(req->sendto.req_s, &req->sendto.req_buf,
-			      req->sendto.req_size, req->sendto.req_flags,
-                  &req->sendto.dstaddr, req->sendto.len);
-        printf("sendto len =%d\n", req->sendto.len);
-        break;
 	case NSREQ_SOCKET:
 		r = lwip_socket(req->socket.req_domain, req->socket.req_type,
 				req->socket.req_protocol);

@@ -24,8 +24,6 @@ enum {
 	NSREQ_LISTEN,
 	// Recv returns a Nsret_recv on the request page.
 	NSREQ_RECV,
-	NSREQ_RECVFROM,
-  NSREQ_SENDTO,
 	NSREQ_SEND,
 	NSREQ_SOCKET,
 
@@ -92,25 +90,6 @@ union Nsipc {
 		unsigned int req_flags;
 		char req_buf[0];
 	} send;
-
-
-	struct Nsreq_recvfrom {
-		int req_s;
-		int req_len;
-		unsigned int req_flags;
-        struct sockaddr srcaddr;
-        socklen_t len;
-	} recvfrom;
-
-
-	struct Nsreq_sendto {
-		int req_s;
-		int req_size;
-		unsigned int req_flags;
-        const struct sockaddr dstaddr;
-        socklen_t len;
-		char req_buf[0];
-	} sendto;
 
 	struct Nsreq_socket {
 		int req_domain;

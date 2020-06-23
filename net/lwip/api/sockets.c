@@ -636,7 +636,7 @@ lwip_send(int s, const void *data, int size, unsigned int flags)
 
 int
 lwip_sendto(int s, const void *data, int size, unsigned int flags,
-       const struct sockaddr *to, socklen_t tolen)
+       struct sockaddr *to, socklen_t tolen)
 {
   struct lwip_socket *sock;
   struct ip_addr remote_addr;
@@ -669,16 +669,16 @@ lwip_sendto(int s, const void *data, int size, unsigned int flags,
 #if LWIP_TCPIP_CORE_LOCKING
   /* Should only be consider like a sample or a simple way to experiment this option (no check of "to" field...) */
   { struct pbuf* p;
-
+  
     p = pbuf_alloc(PBUF_TRANSPORT, 0, PBUF_REF);
     if (p == NULL) {
       err = ERR_MEM;
     } else {
       p->payload = (void*)data;
       p->len = p->tot_len = size;
-
+      
       remote_addr.addr = ((struct sockaddr_in *)to)->sin_addr.s_addr;
-
+      
       LOCK_TCPIP_CORE();
       if (sock->conn->type==NETCONN_RAW) {
         err = sock->conn->err = raw_sendto(sock->conn->pcb.raw, p, &remote_addr);
@@ -686,7 +686,7 @@ lwip_sendto(int s, const void *data, int size, unsigned int flags,
         err = sock->conn->err = udp_sendto(sock->conn->pcb.udp, p, &remote_addr, ntohs(((struct sockaddr_in *)to)->sin_port));
       }
       UNLOCK_TCPIP_CORE();
-
+      
       pbuf_free(p);
     }
   }
@@ -709,7 +709,7 @@ lwip_sendto(int s, const void *data, int size, unsigned int flags,
               s, data, size, flags));
   //ip_addr_debug_print(SOCKETS_DEBUG, &remote_addr);
   LWIP_DEBUGF(SOCKETS_DEBUG, (" port=%u\n", remote_port));
-
+    
   /* make the buffer point to the data that should be sent */
   if ((err = netbuf_ref(&buf, data, size)) == ERR_OK) {
     /* send the data */
@@ -804,11 +804,11 @@ lwip_selscan(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset)
   int i, nready = 0;
   fd_set lreadset, lwriteset, lexceptset;
   struct lwip_socket *p_sock;
-
+  
   FD_ZERO(&lreadset);
   FD_ZERO(&lwriteset);
   FD_ZERO(&lexceptset);
-
+  
   /* Go through each socket in each list to count number of sockets which
   currently match */
   for(i = 0; i < maxfdp1; i++) {
@@ -834,7 +834,7 @@ lwip_selscan(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset)
   *readset = lreadset;
   *writeset = lwriteset;
   FD_ZERO(exceptset);
-
+  
   return nready;
 }
 
@@ -893,27 +893,27 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
         FD_ZERO(writeset);
       if (exceptset)
         FD_ZERO(exceptset);
-
+  
       LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_select: no timeout, returning 0\n"));
       set_errno(0);
-
+  
       return 0;
     }
-
+    
     /* add our semaphore to list */
     /* We don't actually need any dynamic memory. Our entry on the
      * list is only valid while we are in this function, so it's ok
      * to use local variables */
-
+    
     select_cb.sem = sys_sem_new(0);
     /* Note that we are still protected */
     /* Put this select_cb on top of list */
     select_cb.next = select_cb_list;
     select_cb_list = &select_cb;
-
+    
     /* Now we can safely unprotect */
     sys_sem_signal(selectsem);
-
+    
     /* Now just wait to be woken */
     if (timeout == 0)
       /* Wait forever */
@@ -923,9 +923,9 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
       if(msectimeout == 0)
         msectimeout = 1;
     }
-
+    
     i = sys_sem_wait_timeout(select_cb.sem, msectimeout);
-
+    
     /* Take us off the list */
     sys_sem_wait(selectsem);
     if (select_cb_list == &select_cb)
@@ -937,9 +937,9 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
           break;
         }
       }
-
+    
     sys_sem_signal(selectsem);
-
+    
     sys_sem_free(select_cb.sem);
     if (i == 0)  {
       /* Timeout */
@@ -949,13 +949,13 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
         FD_ZERO(writeset);
       if (exceptset)
         FD_ZERO(exceptset);
-
+  
       LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_select: timeout expired\n"));
       set_errno(0);
-
+  
       return 0;
     }
-
+    
     if (readset)
       lreadset = *readset;
     else
@@ -968,22 +968,22 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
       lexceptset = *exceptset;
     else
       FD_ZERO(&lexceptset);
-
+    
     /* See what's set */
     nready = lwip_selscan(maxfdp1, &lreadset, &lwriteset, &lexceptset);
   } else
     sys_sem_signal(selectsem);
-
+  
   if (readset)
     *readset = lreadset;
   if (writeset)
     *writeset = lwriteset;
   if (exceptset)
     *exceptset = lexceptset;
-
+  
   LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_select: nready=%d\n", nready));
   set_errno(0);
-
+  
   return nready;
 }
 
@@ -1154,11 +1154,11 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
 
   /* Do length and type checks for the various options first, to keep it readable. */
   switch (level) {
-
+   
 /* Level: SOL_SOCKET */
   case SOL_SOCKET:
     switch (optname) {
-
+       
     case SO_ACCEPTCONN:
     case SO_BROADCAST:
     /* UNIMPL case SO_DEBUG: */
@@ -1207,7 +1207,7 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
       err = ENOPROTOOPT;
     }  /* switch (optname) */
     break;
-
+                     
 /* Level: IPPROTO_IP */
   case IPPROTO_IP:
     switch (optname) {
@@ -1239,7 +1239,7 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
       err = ENOPROTOOPT;
     }  /* switch (optname) */
     break;
-
+         
 #if LWIP_TCP
 /* Level: IPPROTO_TCP */
   case IPPROTO_TCP:
@@ -1247,7 +1247,7 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
       err = EINVAL;
       break;
     }
-
+    
     /* If this is no TCP socket, ignore any options. */
     if (sock->conn->type != NETCONN_TCP)
       return 0;
@@ -1261,7 +1261,7 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
     case TCP_KEEPCNT:
 #endif /* LWIP_TCP_KEEPALIVE */
       break;
-
+       
     default:
       LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, IPPROTO_TCP, UNIMPL: optname=0x%x, ..)\n",
                                   s, optname));
@@ -1276,7 +1276,7 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
       err = EINVAL;
       break;
     }
-
+    
     /* If this is no UDP lite socket, ignore any options. */
     if (sock->conn->type != NETCONN_UDPLITE)
       return 0;
@@ -1285,7 +1285,7 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
     case UDPLITE_SEND_CSCOV:
     case UDPLITE_RECV_CSCOV:
       break;
-
+       
     default:
       LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, IPPROTO_UDPLITE, UNIMPL: optname=0x%x, ..)\n",
                                   s, optname));
@@ -1300,7 +1300,7 @@ lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
       err = ENOPROTOOPT;
   }  /* switch */
 
-
+   
   if (err != ERR_OK) {
     sock_set_errno(sock, err);
     return -1;
@@ -1345,7 +1345,7 @@ lwip_getsockopt_internal(void *arg)
   optval = data->optval;
 
   switch (level) {
-
+   
 /* Level: SOL_SOCKET */
   case SOL_SOCKET:
     switch (optname) {
@@ -1391,7 +1391,7 @@ lwip_getsockopt_internal(void *arg)
     case SO_ERROR:
       if (sock->err == 0) {
         sock_set_errno(sock, err_to_errno(sock->conn->err));
-      }
+      } 
       *(int *)optval = sock->err;
       sock->err = 0;
       LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, SOL_SOCKET, SO_ERROR) = %d\n",

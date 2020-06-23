@@ -21,8 +21,6 @@ struct Dev {
 	int (*dev_close)(struct Fd *fd);
 	int (*dev_stat)(struct Fd *fd, struct Stat *stat);
 	int (*dev_trunc)(struct Fd *fd, off_t length);
-	ssize_t (*dev_recvfrom)(struct Fd *fd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
-  ssize_t (*dev_sendto)(struct Fd *fd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
 };
 
 struct FdFile {

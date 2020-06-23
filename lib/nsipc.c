@@ -16,7 +16,6 @@ union Nsipc nsipcbuf __attribute__((aligned(PGSIZE)));
 static int
 nsipc(unsigned type)
 {
-
 	static envid_t nsenv;
 	if (nsenv == 0)
 		nsenv = ipc_find_env(ENV_TYPE_NS);
@@ -36,7 +35,7 @@ nsipc_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 	int r;
 
 	nsipcbuf.accept.req_s = s;
-	//nsipcbuf.accept.req_addrlen = *addrlen;
+	nsipcbuf.accept.req_addrlen = *addrlen;
 	if ((r = nsipc(NSREQ_ACCEPT)) >= 0) {
 		struct Nsret_accept *ret = &nsipcbuf.acceptRet;
 		memmove(addr, &ret->ret_addr, ret->ret_addrlen);
@@ -103,30 +102,6 @@ nsipc_recv(int s, void *mem, int len, unsigned int flags)
 	return r;
 }
 
-
-int
-nsipc_recvfrom(int s, void *mem, int size, unsigned int flags, struct sockaddr *srcaddr, socklen_t *len)
-{
-	int r;
-
-	nsipcbuf.recvfrom.req_s = s;
-	nsipcbuf.recvfrom.req_len = size;
-	nsipcbuf.recvfrom.req_flags = flags;
-    //nsipcbuf.recvfrom.srcaddr = srcaddr;
-    //nsipcbuf.recvfrom.len = len;
-    //cprintf("recvfrom.srcaddr = %p, len=%d\n", srcaddr, *len);
-
-	if ((r = nsipc(NSREQ_RECVFROM)) >= 0) {
-		assert(r < 1600 && r <= size);
-		memmove(mem, nsipcbuf.recvRet.ret_buf, r);
-        memmove((void*)srcaddr, (void*)&(nsipcbuf.recvfrom.srcaddr), sizeof(struct sockaddr));
-        *len = nsipcbuf.recvfrom.len;
-	}
-
-	return r;
-}
-
-
 int
 nsipc_send(int s, const void *buf, int size, unsigned int flags)
 {
@@ -137,27 +112,6 @@ nsipc_send(int s, const void *buf, int size, unsigned int flags)
 	nsipcbuf.send.req_flags = flags;
 	return nsipc(NSREQ_SEND);
 }
-
-int
-nsipc_sendto(int s, const void *buf, int size, unsigned int flags, const struct sockaddr *dstaddr, socklen_t len)
-{
-	nsipcbuf.sendto.req_s = s;
-
-	if(size > 1599)
-	{
-		printf("network: packet too big\n");
-		return -E_INVAL;
-	}
-
-	memmove(&nsipcbuf.sendto.req_buf, buf, size);
-    memmove((void*)&nsipcbuf.sendto.dstaddr, dstaddr, len);
-    nsipcbuf.sendto.len = len;
-	nsipcbuf.sendto.req_size = size;
-	nsipcbuf.sendto.req_flags = flags;
-	return nsipc(NSREQ_SENDTO);
-}
-
-
 
 int
 nsipc_socket(int domain, int type, int protocol)
