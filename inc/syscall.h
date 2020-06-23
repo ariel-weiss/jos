@@ -23,6 +23,8 @@ enum {
 	SYS_send_packet,
 	SYS_recv_packet,
 	SYS_get_macaddr,
+	SYS_set_net_classifier,
+	SYS_net_classifier_switch,
 	NSYSCALLS
 };
 

@@ -31,9 +31,15 @@ while (true)
             else
                 nsipc_page = nsipc_page_2;
             page1 = !page1;
-
-						while(sys_recv_packet(&nsipc_page->pkt.jp_data, (size_t *)&nsipc_page->pkt.jp_len) == -E_RXD_EMPTY);
-
+						int r;
+						do{
+							r = sys_recv_packet(&nsipc_page->pkt.jp_data, (size_t *)&nsipc_page->pkt.jp_len);
+						}
+						while(r == -E_RXD_EMPTY);
+						if(r == -E_DANGEROUS){
+							nsipc_page->pkt.jp_len = -1;
+							ipc_send(ns_envid, NSREQ_INPUT, nsipc_page, PTE_P|PTE_W|PTE_U);
+						}
             ipc_send(ns_envid, NSREQ_INPUT, nsipc_page, PTE_P|PTE_W|PTE_U);
         }
 }

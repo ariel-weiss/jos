@@ -65,7 +65,7 @@ low_level_init(struct netif *netif)
 
     uint64_t hwaddr = 0;
     sys_get_macaddr(&hwaddr);
-    
+
     for (i = 0; i < 6; i++)
       netif->hwaddr[i] = (uint8_t)((hwaddr>>(8*i)) & 0xff);
 }
@@ -123,7 +123,9 @@ low_level_input(void *va)
 {
     struct jif_pkt *pkt = (struct jif_pkt *)va;
     s16_t len = pkt->jp_len;
-
+    if (len == -1){
+      return 0;
+    }
     struct pbuf *p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
     if (p == 0)
 	return 0;

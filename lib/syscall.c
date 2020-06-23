@@ -148,3 +148,13 @@ sys_exec(void * binary, const char **argv) {
 	return syscall(SYS_exec, 1, (uint32_t) binary, (uint32_t) argv, 0, 0, 0);
 
 }
+
+
+int
+sys_set_net_classifier(int8_t * vector){
+	return syscall(SYS_set_net_classifier, 1,(uint32_t) vector,0, 0, 0, 0);
+}
+int
+sys_net_classifier_switch(bool state){
+	return syscall(SYS_net_classifier_switch, 0,(uint32_t) state,0, 0, 0, 0);
+}

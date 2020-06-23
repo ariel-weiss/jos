@@ -65,7 +65,9 @@ int	sys_ipc_recv(void *rcv_pg);
 int sys_send_packet(void *srcva, size_t len);
 int sys_recv_packet(void *srcva, size_t *len_store);
 void sys_get_macaddr(uint64_t *addr_store);
-
+/* Net Classifier */
+int sys_set_net_classifier(int8_t * vector);
+int sys_net_classifier_switch(bool status);
 
 
 

@@ -158,8 +158,6 @@ int E1000_receive(void * page_addr, uint16_t *len_store)
         return -E_NO_MEM;
     page_decref(pp);
     *len_store = rxd_arr[nextindex].length;
-    // _reset_rdr(nextindex);
-    // memset(&rxd_arr[nextindex], 0, sizeof(rxd_arr[nextindex]));
 
     //Allocating page for the NIC:
     pp = page_alloc(1);

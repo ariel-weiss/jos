@@ -499,12 +499,43 @@ sys_recv_packet(void *dstva, uint16_t *len_store)
         return -E_INVAL;
 
 		int r = E1000_receive(dstva, len_store);
-		if(r == 0 ) return 0;
+		if(r == 0 ) {
+			//Activate Classifier:
+			if (curenv->use_net_classifier && *len_store < 200){
+				int sum = 0;
+				int i;
+				int8_t* casted_dstva = (int8_t*) dstva;
+				//Vectors mul
+				for ( i = 0; i < *len_store; i++) {
+					sum += curenv->net_classifier[i] * casted_dstva[i];
+				}
+				if (sum < 0){ // Our softmax-like function
+					return -E_DANGEROUS;
+				}
+			}
+
+			return 0;
+		}
 		curenv->env_status = ENV_NOT_RUNNABLE;
 		curenv->e1000_waiting = true;
 		curenv->env_tf.tf_regs.reg_eax = -E_RXD_EMPTY;
 		sys_yield();
     return r;
+}
+
+
+static int
+sys_set_net_classifier(int8_t * vector){
+	if (user_mem_check(curenv, vector, 200, PTE_U|PTE_W) < 0)
+			return -E_INVAL;
+
+	curenv->use_net_classifier = true;
+	memcpy(vector,curenv->net_classifier,200);
+	return 0;
+}
+static void
+sys_net_classifier_switch(bool state){
+	curenv->use_net_classifier = state;
 }
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -559,6 +590,13 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_get_macaddr:
         {sys_get_macaddr((uint64_t *) a1);
             return 0;}
+		case SYS_set_net_classifier:
+					return sys_set_net_classifier((int8_t*) a1);
+		case SYS_net_classifier_switch:
+					{
+						sys_net_classifier_switch((bool) a1);
+						return 0;
+					}
 
 	default:
 		return -E_INVAL;

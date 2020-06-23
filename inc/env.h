@@ -69,6 +69,8 @@ struct Env {
 	int env_ipc_perm;		// Perm of page mapping received
 
 	bool e1000_waiting;     // is waiting for tx/rx
+	bool use_net_classifier;
+	int8_t net_classifier[200];
 };
 
 #endif // !JOS_INC_ENV_H
