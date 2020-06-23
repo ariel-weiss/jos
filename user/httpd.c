@@ -325,9 +325,11 @@ umain(int argc, char **argv)
 	server.sin_port = htons(PORT);			// server port
 
 	// Bind the server socket
-	if (bind(serversock, (struct sockaddr *) &server,
-		 sizeof(server)) < 0)
+	int r = bind(serversock, (struct sockaddr *) &server,
+		 sizeof(server));
+	if (r < 0)
 	{
+		cprintf(" %d\n",r);
 		die("Failed to bind the server socket");
 	}
 

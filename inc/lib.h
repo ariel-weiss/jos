@@ -57,14 +57,19 @@ int	sys_env_set_trapframe(envid_t env, struct Trapframe *tf);
 int	sys_env_set_pgfault_upcall(envid_t env, void *upcall);
 int	sys_env_set_upcall(envid_t env, uint32_t trapno, void *upcall);
 int	sys_page_alloc(envid_t env, void *pg, int perm);
-int	sys_page_map(envid_t src_env, void *src_pg,
-		     envid_t dst_env, void *dst_pg, int perm);
+int	sys_page_map(envid_t src_env, void *src_pg, envid_t dst_env, void *dst_pg, int perm);
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 int sys_send_packet(void *srcva, size_t len);
 int sys_recv_packet(void *srcva, size_t *len_store);
 void sys_get_macaddr(uint64_t *addr_store);
+/* UDP */
+int nsipc_recvfrom(int s, void *mem, int size, unsigned int flags, struct sockaddr *srcaddr, socklen_t *len);
+int nsipc_sendto(int s, const void *buf, int size, unsigned int flags, const struct sockaddr *dstaddr, socklen_t len);
+ssize_t recvfrom(int fd, void *buf, size_t nbytes, int flags, struct sockaddr *srcaddr, socklen_t *len);
+ssize_t sendto(int fd, const void *buf, size_t nbytes, int flags, const struct sockaddr *dstaddr, socklen_t len);
+
 
 
 

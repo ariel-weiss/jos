@@ -28,6 +28,7 @@ enum {
 
   E_TXD_FULL      ,       // Transmit buffer full
   E_RXD_EMPTY     ,       // Receive buffer empty
+	E_BAD_PERM ,
 	MAXERROR
 };
 

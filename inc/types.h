@@ -70,4 +70,28 @@ typedef int32_t off_t;
 // Return the offset of 'member' relative to the beginning of a struct type
 #define offsetof(type, member)  ((size_t) (&((type*)0)->member))
 
+
+
+
+typedef uint32_t u32_t;
+typedef int32_t s32_t;
+
+typedef uint64_t u64_t;
+typedef int64_t s64_t;
+
+typedef uint16_t u16_t;
+typedef int16_t s16_t;
+
+typedef uint8_t u8_t;
+typedef int8_t s8_t;
+
+
+struct sockaddr {
+  u8_t sa_len;
+  u8_t sa_family;
+  char sa_data[14];
+};
+#define socklen_t u32_t
+
+
 #endif /* !JOS_INC_TYPES_H */

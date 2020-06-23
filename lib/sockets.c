@@ -6,6 +6,9 @@ static ssize_t devsock_write(struct Fd *fd, const void *buf, size_t n);
 static int devsock_close(struct Fd *fd);
 static int devsock_stat(struct Fd *fd, struct Stat *stat);
 
+static ssize_t  devsock_recvfrom(struct Fd *fd, void *buf, size_t n, int flags, struct sockaddr *srcaddr, socklen_t *len);
+static ssize_t  devsock_sendto(struct Fd *fd, const void *buf, size_t n, int flags, const struct sockaddr *destaddr, socklen_t len);
+
 struct Dev devsock =
 {
 	.dev_id =	's',
@@ -14,6 +17,8 @@ struct Dev devsock =
 	.dev_write =	devsock_write,
 	.dev_close =	devsock_close,
 	.dev_stat =	devsock_stat,
+	.dev_recvfrom = devsock_recvfrom,
+  .dev_sendto = devsock_sendto
 };
 
 static int
@@ -108,6 +113,22 @@ devsock_read(struct Fd *fd, void *buf, size_t n)
 {
 	return nsipc_recv(fd->fd_sock.sockid, buf, n, 0);
 }
+
+
+
+static ssize_t
+devsock_recvfrom(struct Fd *fd, void *buf, size_t n, int flags, struct sockaddr *srcaddr, socklen_t *len)
+{
+	return nsipc_recvfrom(fd->fd_sock.sockid, buf, n, 0, srcaddr, len);
+}
+
+static ssize_t
+devsock_sendto(struct Fd *fd, const void *buf, size_t n, int flags, const struct sockaddr *destaddr, socklen_t len)
+{
+	return nsipc_sendto(fd->fd_sock.sockid, buf, n, 0, destaddr,  len);
+}
+
+
 
 static ssize_t
 devsock_write(struct Fd *fd, const void *buf, size_t n)
