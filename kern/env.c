@@ -275,7 +275,13 @@ memset(e->env_upcalls, 0, sizeof(void *) * 16);
 	*newenv_store = e;
 
 	e->e1000_waiting = false;
+	// Classifier Fields initialization:
 	e->use_net_classifier = false;
+	size_t i;
+	for ( i = 0; i < BLACKLIST_LEN; i++) {
+		e->blacklist_array[i].mac_addr = 0;
+		e->blacklist_array[i].score = BLACKLIST_INITIAL_SCORE;
+	}
 	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }

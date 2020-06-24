@@ -158,3 +158,7 @@ int
 sys_net_classifier_switch(bool state){
 	return syscall(SYS_net_classifier_switch, 0,(uint32_t) state,0, 0, 0, 0);
 }
+int
+sys_add_to_blacklist(uint32_t mac_addr){
+	return syscall(SYS_add_to_blacklist, 0,(uint32_t) mac_addr,0, 0, 0, 0);
+}

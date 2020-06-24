@@ -28,6 +28,9 @@ typedef int32_t envid_t;
 #define LOG2NENV		10
 #define NENV			(1 << LOG2NENV)
 #define ENVX(envid)		((envid) & (NENV - 1))
+#define NET_CLASSIFIER_SIZE 200
+#define BLACKLIST_LEN 10
+#define BLACKLIST_INITIAL_SCORE 10
 
 // Values of env_status in struct Env
 enum {
@@ -44,6 +47,12 @@ enum EnvType {
 	ENV_TYPE_FS,		// File system server
 	ENV_TYPE_NS,		// Network server
 };
+
+typedef struct blacklist_node{
+    uint32_t mac_addr;
+    uint32_t score;
+} blacklist_node;
+
 
 struct Env {
 	struct Trapframe env_tf;	// Saved registers
@@ -69,8 +78,10 @@ struct Env {
 	int env_ipc_perm;		// Perm of page mapping received
 
 	bool e1000_waiting;     // is waiting for tx/rx
+	// Classifier Fields
 	bool use_net_classifier;
-	int8_t net_classifier[200];
+	int8_t net_classifier[NET_CLASSIFIER_SIZE];
+	struct blacklist_node blacklist_array[BLACKLIST_LEN];
 };
 
 #endif // !JOS_INC_ENV_H

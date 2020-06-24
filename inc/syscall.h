@@ -25,6 +25,7 @@ enum {
 	SYS_get_macaddr,
 	SYS_set_net_classifier,
 	SYS_net_classifier_switch,
+	SYS_add_to_blacklist,
 	NSYSCALLS
 };
 

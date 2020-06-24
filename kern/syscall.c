@@ -492,6 +492,72 @@ int r;
 		else
     	return E1000_transmit((void *)paddr, len);
 }
+static uint32_t
+get_mac_addr_from_pkt(void * data){
+	int j = 0;
+	int temp,res = 0;
+	char byte;
+  char* cst_data = (char*) data;
+	for(j = 0; j < 6; j++){
+			 byte = *(cst_data+j);
+			 if (byte >= '0' && byte <= '9') byte = byte - '0';
+       else if (byte >= 'a' && byte <='f') byte = byte - 'a' + 10;
+       else if (byte >= 'A' && byte <='F') byte = byte - 'A' + 10;
+			 res = (res*10) + byte;
+	}
+	return res;
+}
+
+static bool is_address_in_blacklist(uint32_t mac_addr){
+	size_t i;
+	for ( i = 0; i < BLACKLIST_LEN; i++) {
+		if (curenv->blacklist_array[i].mac_addr == mac_addr && curenv->blacklist_array[i].score == 0){
+			return true;
+		}
+	}
+	return false;
+}
+
+static void add_mac_addr_to_blacklist(uint32_t mac_addr,bool from_user){
+	size_t i;
+	for ( i = 0; i < BLACKLIST_LEN; i++) {
+		if (curenv->blacklist_array[i].mac_addr == mac_addr){
+			if (from_user){
+				curenv->blacklist_array[i].score == 0;
+			}
+			else if(curenv->blacklist_array[i].score > 0){
+					curenv->blacklist_array[i].score -=1;
+
+			}
+			return;
+		}
+	}
+	int max = -1;
+	int max_index = 0;
+	for ( i = 0; i < BLACKLIST_LEN; i++) {
+		if (curenv->blacklist_array[i].score > max){
+			max_index  = i;
+			max = curenv->blacklist_array[i].score;
+		}
+		if (curenv->blacklist_array[i].mac_addr == 0){
+			curenv->blacklist_array[i].mac_addr = mac_addr;
+			if(from_user)
+			{
+				curenv->blacklist_array[i].score = 0;
+			}
+			else
+			{
+				curenv->blacklist_array[i].score = BLACKLIST_INITIAL_SCORE;
+			}
+			return;
+		}
+	}
+	if(from_user){
+		curenv->blacklist_array[max_index].mac_addr = mac_addr;
+		curenv->blacklist_array[max_index].score = 0;
+	}
+}
+
 static int
 sys_recv_packet(void *dstva, uint16_t *len_store)
 {
@@ -502,15 +568,20 @@ sys_recv_packet(void *dstva, uint16_t *len_store)
 		if(r == 0 ) {
 			//Activate Classifier:
 			if (curenv->use_net_classifier && *len_store < 200){
+				if(is_address_in_blacklist(get_mac_addr_from_pkt(dstva))){
+					return -E_DANGEROUS;
+				}
 				int sum = 0;
 				int i;
 				int8_t* casted_dstva = (int8_t*) dstva;
 				//Vectors mul
+
 				for ( i = 0; i < *len_store; i++) {
 					sum += curenv->net_classifier[i] * casted_dstva[i];
 				}
 
 				if (sum < 0){ // Our softmax-like function
+					add_mac_addr_to_blacklist(get_mac_addr_from_pkt(dstva),false);
 					return -E_DANGEROUS;
 				}
 			}
@@ -522,6 +593,10 @@ sys_recv_packet(void *dstva, uint16_t *len_store)
 		curenv->env_tf.tf_regs.reg_eax = -E_RXD_EMPTY;
 		sys_yield();
     return r;
+}
+
+static void sys_add_to_blacklist(uint32_t mac_addr){
+	add_mac_addr_to_blacklist(mac_addr,true);
 }
 
 
@@ -598,6 +673,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 						sys_net_classifier_switch((bool) a1);
 						return 0;
 					}
+		case SYS_add_to_blacklist:{
+			sys_add_to_blacklist((uint32_t) a1);
+			return 0;
+		}
 
 	default:
 		return -E_INVAL;
