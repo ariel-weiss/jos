@@ -1,0 +1,58 @@
+1) How did you structure your transmit implementation? In particular, what do you do if the transmit ring is full?
+
+If the tx ring is full we return an error that causes the output env to wait until not full / timeout.
+Else, we take a free pointer from our tx descriptors array and pointed it at the current packet.
+Lastly, we move forward the tail of the tx ring. (zero-copy)
+
+2) How did you structure your receive implementation? In particular, what do you do if the receive queue is empty and a user environment requests the next incoming packet?
+
+If the RX ring is empty, we set the env state to Not Runnable and set a flag to indicate the env is waiting.
+When getting an interrupt, we check for any env this flag: if it's true, we set the state to Runnable and clear the flag.
+If the RX ring is not empty, we take the packet physical address and insert it in the page table of the user.
+Then we allocate a new page in RX descriptors array to be ready for written by the NIC (zero-copy).
+
+3) What does the web page served by JOS's web server say?
+
+"This file came from JOS"
+ "Cheesy web page!"
+
+4) How long approximately did it take you to do this lab?
+40 hours!
+
+======CHALLENGES======
+-------------------
+Challenge 1: EEPROM
+-------------------
+We implemented a dynamic reading of the mac address from EEPROM.
+We created:
+-a function in the driver which reads the mac from EEPROM using the EERD register
+-a syscall called sys_get_mac_addr which returns the mac_addr
+and calls the e1000_read_mac function to fill in the data.
+Setting the start bit in the EERD register begins reading the MAC address.
+We spin on the done bit of the register until the read is finish.
+In the e1000 initialization we use our syscall to get the mac address dynamically
+Also, we change lwIP to use the syscall too.
+
+
+---------------------
+Challenge 2: Zerocopy
+---------------------
+Transmit:
+Instead of copy the data, We take a free pointer from our tx descriptors array and pointed it at the current packet.
+We add a function that returns the physical address of a certain user-space address VA, so we could give the NIC a physical address from the user.
+Receive:
+We have an array of RX descriptors, each descriptor is pointing to an empty page which the NIC can write to,
+After the NIC is done writing to a certain page we push this page physical address into the page table of the receiver environment at the requested VA
+and alloc a new page to point to from the RX descriptor
+
+
+------------------------------------------------------
+ Challenge 3: linear classifier for packet filtering.
+------------------------------------------------------
+In short: we wanted to create support from our kernel to a linear classifier that can detect malicious
+packets and filter them for the user.
+In details: each environment have 2 ways of using a linear classifier
+1.	Pass his matrix (which represents a linear classifier) to the kernel, and the kernel will run the matrix for this env for every packet arriving from the NIC.
+2.	The user can report to the kernel about packets, and every time the kernel does nothing it will train its internal classifier that the users can use
+Also in order to save time we maintain a blacklist for each env, every mac_addr that fail in the classifier more then 10 times will go
+to blacklist and the user will never receive packets from this mac_addr again (a user can add some address to the blacklist by himself if he wants).
