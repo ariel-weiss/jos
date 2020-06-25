@@ -47,13 +47,18 @@ enum EnvType {
 	ENV_TYPE_FS,		// File system server
 	ENV_TYPE_NS,		// Network server
 };
-
+/* Classifier Fields */
 typedef struct blacklist_node{
     uint32_t mac_addr;
     uint32_t score;
 } blacklist_node;
 
-
+bool classifier_ready;
+int8_t weight_arr[50];
+int8_t classifier_data[20][50];
+bool labals[20];
+int classifier_data_index;
+/* ================= */
 struct Env {
 	struct Trapframe env_tf;	// Saved registers
 	struct Env *env_link;		// Next free Env
@@ -80,6 +85,7 @@ struct Env {
 	bool e1000_waiting;     // is waiting for tx/rx
 	// Classifier Fields
 	bool use_net_classifier;
+	bool use_system_net_classifier;
 	int8_t net_classifier[NET_CLASSIFIER_SIZE];
 	struct blacklist_node blacklist_array[BLACKLIST_LEN];
 };

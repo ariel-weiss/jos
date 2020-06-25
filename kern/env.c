@@ -132,6 +132,8 @@ env_init(void)
 			prev = &(envs[i]);
 
 		}
+	classifier_data_index = 0;
+	classifier_ready  =false;
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -277,6 +279,7 @@ memset(e->env_upcalls, 0, sizeof(void *) * 16);
 	e->e1000_waiting = false;
 	// Classifier Fields initialization:
 	e->use_net_classifier = false;
+	e->use_system_net_classifier = false;
 	size_t i;
 	for ( i = 0; i < BLACKLIST_LEN; i++) {
 		e->blacklist_array[i].mac_addr = 0;

@@ -26,6 +26,8 @@ enum {
 	SYS_set_net_classifier,
 	SYS_net_classifier_switch,
 	SYS_add_to_blacklist,
+	SYS_system_net_classifier_switch,
+	SYS_report_bad_packet,
 	NSYSCALLS
 };
 

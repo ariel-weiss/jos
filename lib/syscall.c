@@ -159,6 +159,14 @@ sys_net_classifier_switch(bool state){
 	return syscall(SYS_net_classifier_switch, 0,(uint32_t) state,0, 0, 0, 0);
 }
 int
+sys_system_net_classifier_switch(bool state){
+	return syscall(SYS_system_net_classifier_switch, 0,(uint32_t) state,0, 0, 0, 0);
+}
+int
 sys_add_to_blacklist(uint32_t mac_addr){
 	return syscall(SYS_add_to_blacklist, 0,(uint32_t) mac_addr,0, 0, 0, 0);
+}
+int 
+sys_report_bad_packet(char* packet,bool label){
+	return syscall(SYS_report_bad_packet, 0,(uint32_t) packet,(uint32_t) label, 0, 0, 0);
 }

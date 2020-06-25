@@ -68,8 +68,9 @@ void sys_get_macaddr(uint64_t *addr_store);
 /* Net Classifier */
 int sys_set_net_classifier(int8_t * vector);
 int sys_net_classifier_switch(bool status);
+int sys_system_net_classifier_switch(bool status);
 int sys_add_to_blacklist(uint32_t mac_addr);
-
+int sys_report_bad_packet(char* packet,bool label);
 
 unsigned int sys_time_msec(void);
 
