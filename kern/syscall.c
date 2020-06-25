@@ -567,9 +567,13 @@ sys_recv_packet(void *dstva, uint16_t *len_store)
 		int r = E1000_receive(dstva, len_store);
 		if(r == 0 ) {
 			//Activate Classifier:
-			if (curenv->use_net_classifier && *len_store < 200){
+			if ((curenv->use_net_classifier && *len_store < 200)||(curenv->use_system_net_classifier && *len_store < 50 && classifier_ready)){
 				if(is_address_in_blacklist(get_mac_addr_from_pkt(dstva))){
 					return -E_DANGEROUS;
+				}
+				int8_t* classifier = curenv->net_classifier;
+				if(curenv->use_system_net_classifier){
+					classifier = weight_arr;
 				}
 				int sum = 0;
 				int i;
@@ -577,7 +581,7 @@ sys_recv_packet(void *dstva, uint16_t *len_store)
 				//Vectors mul
 
 				for ( i = 0; i < *len_store; i++) {
-					sum += curenv->net_classifier[i] * casted_dstva[i];
+					sum += classifier[i] * casted_dstva[i];
 				}
 
 				if (sum < 0){ // Our softmax-like function
@@ -600,6 +604,8 @@ static void sys_add_to_blacklist(uint32_t mac_addr){
 }
 
 
+
+
 static int
 sys_set_net_classifier(int8_t * vector){
 	if (user_mem_check(curenv, vector, 200, PTE_U|PTE_W) < 0)
@@ -613,6 +619,25 @@ static void
 sys_net_classifier_switch(bool state){
 	curenv->use_net_classifier = state;
 }
+
+static void
+sys_system_net_classifier_switch(bool state){
+	curenv->use_system_net_classifier = state;
+}
+static int
+sys_report_bad_packet(char* packet,bool label){
+	//Check packet
+	if (user_mem_check(curenv, packet, 50, PTE_U|PTE_W) < 0)
+			return -E_INVAL;
+	//Add to classifier data
+	if(classifier_data_index)
+	  	return -22; //CLASSIFIER_FULL
+	memcpy(packet,classifier_data[classifier_data_index],50);
+	labals[classifier_data_index] = label;
+	classifier_data_index++;
+	return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -673,10 +698,17 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 						sys_net_classifier_switch((bool) a1);
 						return 0;
 					}
+		case SYS_system_net_classifier_switch:
+					{
+						sys_system_net_classifier_switch((bool) a1);
+						return 0;
+					}
 		case SYS_add_to_blacklist:{
 			sys_add_to_blacklist((uint32_t) a1);
 			return 0;
 		}
+		case SYS_report_bad_packet:
+			return sys_report_bad_packet((char*) a1, (bool) a2);
 
 	default:
 		return -E_INVAL;

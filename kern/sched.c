@@ -6,7 +6,52 @@
 #include <kern/monitor.h>
 
 void sched_halt(void);
+void train_classifier(){
+	classifier_ready = false;
+	int i,j,sum;
+	bool y;
+	int iterations = 0;
+	bool error = true;
+	int maxIterations = 10000;
+	double alpha = 0.01;
+	int sign;
 
+	while (error && iterations < maxIterations)
+	{
+		error = false;
+		for (i = 0; i < classifier_data_index ; i++)
+		{
+		    sum = 0;
+	    for(j=0;j<50;j++){
+	        sum+=classifier_data[i][j] * weight_arr[j];
+	    }
+
+
+			if (sum < 0)
+			{
+				y = false;
+				sign = 1;
+			}
+			else
+			{
+				y = true;
+				sign = -1;
+			}
+
+			if (y != labals[i])
+			{
+				error = true;
+				for(j=0;j<50;j++){
+				    weight_arr[j] += sign * alpha  * classifier_data[i][j] / 2;
+					}
+
+			}
+		}
+
+		iterations++;
+	}
+	classifier_ready = true;
+}
 // Choose a user environment to run and run it.
 void
 sched_yield(void)
@@ -94,10 +139,16 @@ sched_halt(void)
 	// Mark that no environment is running on this CPU
 	curenv = NULL;
 	lcr3(PADDR(kern_pgdir));
+	/* Train our classifier: */
+	if (cpunum() == 0){
+			train_classifier();
+	}
+	/* ===================== */
 
 	// Mark that this CPU is in the HALT state, so that when
 	// timer interupts come in, we know we should re-acquire the
 	// big kernel lock
+
 	xchg(&thiscpu->cpu_status, CPU_HALTED);
 
 	// Release the big kernel lock as if we were "leaving" the kernel
