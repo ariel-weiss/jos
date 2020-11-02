@@ -1,9 +1,9 @@
 # Jos Operating System
-This is ![Shaya's](https://github.com/yishayahu) and mine implementation of the Jos operating system.
+This is [Shaya's](https://github.com/yishayahu) and mine implementation of the Jos operating system.
 
-The main skeleton was provided by Technion's OS Engineering class, inspaired from ![MIT class](https://pdos.csail.mit.edu/6.828/2016/overview.html).
+The main skeleton was provided by Technion's OS Engineering class, inspaired from [MIT class](https://pdos.csail.mit.edu/6.828/2016/overview.html).
 
-Instructions to the makefile and more can be found ![here](https://pdos.csail.mit.edu/6.828/2016/labguide.html).
+Instructions to the makefile and more can be found [here](https://pdos.csail.mit.edu/6.828/2016/labguide.html).
 
 ## Build & Run
 <p>
