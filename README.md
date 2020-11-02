@@ -25,7 +25,7 @@ The best way to use Jos without over complicating things is Docker :whale: .
 Now you have started docker contianer with Jos. 
 
 One option to start fiddle with Jos is with normal qemu make:
-<br><small>(make sure your in /jos/ folder)</small>
+<br><small>(make sure you are inside /jos/ folder)</small>
   ```bash
   make
   make qemu-nox
